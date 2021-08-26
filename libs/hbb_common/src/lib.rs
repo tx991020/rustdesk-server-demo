@@ -86,7 +86,8 @@ fn new_socket(addr: SocketAddr, tcp: bool, reuse: bool) -> Result<Socket, std::i
 }
 
 pub type ResultType<F, E = anyhow::Error> = anyhow::Result<F, E>;
-
+/// 某些路由器和防火墙扫描数据包，如果它们
+/// 找到一个属于他们池的 IP 地址，用于进行 NAT 映射/转换，因此我们在这里修改 IP 地址
 /// Certain router and firewalls scan the packet and if they
 /// find an IP address belonging to their pool that they use to do the NAT mapping/translation, so here we mangle the ip address
 

@@ -29,6 +29,7 @@ impl DerefMut for FramedStream {
     }
 }
 
+//建立tcp
 impl FramedStream {
     pub async fn new<T: ToSocketAddrs, T2: ToSocketAddrs>(
         remote_addr: T,
@@ -131,6 +132,7 @@ impl FramedStream {
 
 const DEFAULT_BACKLOG: i32 = 128;
 
+//tcp listen
 #[allow(clippy::never_loop)]
 pub async fn new_listener<T: ToSocketAddrs>(addr: T, reuse: bool) -> ResultType<TcpListener> {
     if !reuse {

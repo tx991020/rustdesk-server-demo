@@ -26,6 +26,7 @@ impl DerefMut for FramedSocket {
     }
 }
 
+//udp收发
 impl FramedSocket {
     pub async fn new<T: ToSocketAddrs>(addr: T) -> ResultType<Self> {
         let socket = UdpSocket::bind(addr).await?;

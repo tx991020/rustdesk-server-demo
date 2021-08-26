@@ -116,6 +116,7 @@ message RendezvousMessage {
   oneof union {
     RegisterPeer register_peer = 6;
     RegisterPeerResponse register_peer_response = 7;
+    //打孔
     PunchHoleRequest punch_hole_request = 8;
     PunchHole punch_hole = 9;
     PunchHoleSent punch_hole_sent = 10;
