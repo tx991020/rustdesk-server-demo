@@ -27,6 +27,8 @@ pub use anyhow::{self, bail};
 pub use futures_util;
 pub mod config;
 pub mod fs;
+pub mod utils;
+
 pub use sodiumoxide;
 
 #[cfg(feature = "quic")]

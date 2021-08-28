@@ -6,5 +6,9 @@ edition = "2018"
 description = "A remote control software."
 
 [dependencies]
+uuid = { version = "0.8", features = ["v4"] }
 hbb_common = { path = "libs/hbb_common" }
+tracing = "0.1"
+tracing-subscriber = "0.2"
+
 
