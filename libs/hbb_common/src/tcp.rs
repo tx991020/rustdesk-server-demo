@@ -73,6 +73,7 @@ impl FramedStream {
     }
 
     #[inline]
+    //加密发送
     pub async fn send_raw(&mut self, msg: Vec<u8>) -> ResultType<()> {
         let mut msg = msg;
         if let Some(key) = self.1.as_mut() {
