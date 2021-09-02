@@ -1,5 +1,5 @@
 use crate::tokio::time::interval;
-use hbb_common::message_proto::Message;
+use hbb_common::message_proto::{Message, message};
 use hbb_common::tokio::sync::mpsc;
 use hbb_common::{
     bytes::BytesMut,
@@ -44,17 +44,17 @@ async fn main() {
     let mut listener_active = new_listener("0.0.0.0:21116", false).await.unwrap();
     //
     let mut listener_passive = new_listener("0.0.0.0:21117", false).await.unwrap();
+    let mut listener_passive1 = new_listener("0.0.0.0:21118", false).await.unwrap();
 
     //两个quic raw_data channel
     let (tx_from_active, mut rx_from_active) = mpsc::unbounded_channel::<Vec<u8>>();
     let (tx_from_passive, mut rx_from_passive) = mpsc::unbounded_channel::<Vec<u8>>();
 
 
-
     //把所有的远程rust_deskId存起来 //arc//RwLock
     let mut id_map = std::collections::HashMap::new();
     // let relay_server = std::env::var("IP").unwrap();
-    let relay_server = "176.122.144.113:21116".to_string();
+
     // let mut saved_stream = None;
     const TIMER_OUT: Duration = Duration::from_secs(1);
     let mut timer = interval(TIMER_OUT);
@@ -66,20 +66,59 @@ async fn main() {
         Some(Ok((bytes, addr))) = socket.next() => {
             handle_udp(&mut socket, bytes, addr, &mut id_map).await;
         }
-         Ok((stream, addr))  = listener_passive.accept() => {
+         Ok((stream, addr))  = listener_passive1.accept() =>{
+                 let mut stream = FramedStream::from(stream);
+                if let Some(Ok(bytes)) = stream.next_timeout(3000).await{
+                    if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
+                        match msg_in.union {
+                         Some(message::Union::hash(hash)) => {
+                            println!("8888888{:?}",&hash);
+
+                        }
+                        _ => {
+                            println!("99999");
+                        }
+                    }
+                    }
+
+                }
+            }
+
+           Ok((stream, addr))  = listener_passive.accept() => {
                  let mut stream = FramedStream::from(stream);
                  if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
 
-                    if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
-                         info!(" aaaaaaaaaaaaa listener_passive data {:?}",&msg_in);
-                        tx_from_passive.send(bytes.to_vec());
+                    if  let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes)  {
+                         match msg_in.union {
+                            Some(rendezvous_message::Union::local_addr(ph)) =>{
+                                //第二步给对方发udp request_relay
+                            let  remote_desk_id = ph.id;
+                                println!("111111111{}",&remote_desk_id);
+                                if let Some(client) = id_map.get(&remote_desk_id) {
+                                   udp_send_request_relay(&mut socket,"47.88.2.164:21117".to_string(),client.local_addr).await;
+                                }
 
-                          println!("{}","-------------------------");
+                            }
+                            Some(rendezvous_message::Union::relay_response(_)) => {
+                                info!(" 2222222 relay_response {:?}", addr);
+                            let mut msg_out = RendezvousMessage::new();
+                            //提供一个 relay_server地址
+                            msg_out.set_relay_response(RelayResponse {
+                                relay_server: "47.88.2.164:21117".to_string(),
+                                ..Default::default()
+                            });
 
+                            stream.send(&msg_out).await;
 
+                        }
+                            _ => {
+                            println!("7777");
+                            }
+															//回复 test_nat_response
+                        }
+                    }else{
+                        println!("44444444");
                     }
-                }else{
-                    stream.send().await.is_ok();
                 }
 
 
@@ -171,18 +210,7 @@ async fn main() {
                                stream.send(&msg_out).await;
 
                         }
-                        Some(rendezvous_message::Union::relay_response(_)) => {
-                                info!("relay_response ffffffffff {:?}", addr);
-                            let mut msg_out = RendezvousMessage::new();
-                            //提供一个 relay_server地址
-                            msg_out.set_relay_response(RelayResponse {
-                                relay_server: "47.88.2.164:21116".to_string(),
-                                ..Default::default()
-                            });
 
-                            stream.send(&msg_out).await;
-
-                        }
                         _ => {}
                     }
                 }else if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
@@ -223,25 +251,25 @@ async fn main() {
 
             }
             Some(data) = rx_from_active.recv() => {
-                  println!("rrrrrrrrrrrr 收到主动端发的ui信息发给被动端  send to 21117{:?}",&data);
+                  println!("rrrrrrrrrrrr 收到主动端发的ui信息发给被动端  send to 21118{:?}",&data);
 
-                 if let Ok((stream_a, _)) = listener_passive.accept().await {
+                 if let Ok((stream_a, _)) = listener_passive1.accept().await {
                     let mut stream_a = FramedStream::from(stream_a);
                     stream_a.next_timeout(3_000).await;
                     stream_a.set_raw();
                      loop {
-        tokio::select! {
+                        tokio::select! {
 
-            res = stream_a.next() => {
-                if let Some(Ok(bytes)) = res {
-                                    println!("mmmmmmmmm{:?}",&bytes);
-                    stream_a.send_bytes(bytes.into()).await.ok();
-                } else {
-                    break;
-                }
-            },
+                            res = stream_a.next() => {
+                                if let Some(Ok(bytes)) = res {
+                                                    println!("mmmmmmmmm{:?}",&bytes);
+                                    stream_a.send_bytes(bytes.into()).await.ok();
+                                } else {
+                                    break;
+                                }
+                            },
 
-        }
+                        }
     }
                 }
 
@@ -256,25 +284,7 @@ async fn main() {
     }
 }
 
-//
-//
 
-//
-//                         // Some(rendezvous_message::Union::punch_hole_request(ph)) => {
-//                         //     println!("punch_hole_request {:?}", addr);
-//                         //     //如果在idMap里找到 rust_deskId ,ip 和收到的匹配,发动打洞回复，比给他提供一个 relay_server地址
-//                         //     if let Some(addr) = id_map.get(&ph.id) {
-//                         //         // let mut msg_out = RendezvousMessage::new();
-//                         //         // msg_out.set_request_relay(RequestRelay {
-//                         //         //     relay_server: relay_server.clone(),
-//                         //         //     ..Default::default()
-//                         //         // });
-//                         //         // //通过udp回复客户端打洞请求,提供一个中继cdn地址
-//                         //         // socket.send(&msg_out, addr.clone()).await.ok();
-//                         //         udp_send_request_relay(&mut socket,addr.clone()).await;
-//                         //         saved_stream = Some(stream);
-//                         //     }
-//                         // }
 
 async fn udp_send_register_peer_response(
     socket: &mut FramedSocket,
