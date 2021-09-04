@@ -16,8 +16,8 @@ async fn main() -> ResultType<()> {
     socket.send_raw("haha".as_bytes(),to_socket_addr("127.0.0.1:9000").unwrap()).await?;
     loop {
         select! {
-            Some(Ok((bytes, addr))) = socket.next() => {
-           println!("4444{:?}",bytes);
+            _ = socket.next() => {
+           println!("4444");
             },
         }
     }

@@ -1,0 +1,250 @@
+
+
+
+
+    //                     _ => {}
+    //                 }
+    //             }else if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
+    //                     info!("cccccccccccccc listen_active data {:?}",&msg_in);
+    //                       tx_from_active.send(bytes.to_vec());
+    //
+    //                          println!("{}","+++++++++++++++++");
+    //                 //    if let Some(data) = rx_from_passive.recv().await{
+    //                 //        info!("ddddddddddddd rx_from_passive data {:?}",&msg_in);
+    //                 //         stream.send_raw(data).await;
+    //                 //     }
+    //             }
+    //         }
+    //     }
+    //
+    //          Some(data) = rx_from_passive.recv() => {
+    //              println!("eeeeeeeeeeeeeee 收到被动端消息 send to 21119{:?}",&data);
+    //              if let Ok((stream_a, _)) = listener_active.accept().await {
+    //                 let mut stream_a = FramedStream::from(stream_a);
+    //                 match  stream_a.send_raw(data).await{
+    //                     Ok(())=>{
+    //
+    //                     }
+    //                     Err(_)=>{
+    //                         println!("{}","send error ++++++++++");
+    //                     }
+    //                 }
+    //
+    //             }
+    //
+    //
+    //         }
+    //         Some(data) = rx_from_active.recv() => {
+    //               println!("rrrrrrrrrrrr 收到主动端发的ui信息发给被动端  send to 21118{:?}",&data);
+    //
+    //              if let Ok((stream_a, _)) = listener_passive1.accept().await {
+    //                 let mut stream_a = FramedStream::from(stream_a);
+    //                match  stream_a.send_raw(data).await{
+    //                     Ok(())=>{
+    //
+    //                     }
+    //                     Err(_)=>{
+    //                         println!("{}","send error ++++++++++");
+    //                     }
+    //                 }
+    //
+    //             }
+    //
+    //         }
+    //
+    //            _ = timer.tick() => {
+    //             // 遍历ip_map 找出超出超时没发心跳的，告诉当方它已离线
+    //         // println!("ticker ip_map_list{:#?}",&id_map);
+    //          }
+    //
+    //          }
+    // }
+}
+
+async fn udp_send_register_peer_response(
+    socket: &mut FramedSocket,
+    bytes: BytesMut,
+    addr: std::net::SocketAddr,
+    id_map: &mut std::collections::HashMap<String, std::net::SocketAddr>,
+) {
+    // let mut msg_out = FetchLocalAddr::new();
+    // msg_out.set_fetch_local_addr(msg_out);
+    // socket.send(&msg_out, addr).await.ok();
+}
+
+//被控第一步//从中间收
+
+async fn udp_srend_fetch_local_addr(
+    socket: &mut FramedSocket,
+    relay_server: String,
+    addr: std::net::SocketAddr,
+) {
+    println!("sssssssss{:?}", &addr);
+    let mut msg_out = RendezvousMessage::new();
+    let addr1 = socket
+        .get_ref()
+        .local_addr()
+        .unwrap_or(to_socket_addr("47.88.2.164:21117").unwrap());
+    let vec1 = AddrMangle::encode(addr1);
+    msg_out.set_fetch_local_addr(FetchLocalAddr {
+        socket_addr: vec1,
+        relay_server,
+        ..Default::default()
+    });
+    socket.send(&msg_out, addr).await.ok();
+}
+
+async fn udp_send_punch_hole(
+    socket: &mut FramedSocket,
+    bytes: BytesMut,
+    addr: std::net::SocketAddr,
+    id_map: &mut std::collections::HashMap<String, std::net::SocketAddr>,
+) {
+    // let mut msg_out = FetchLocalAddr::new();
+    // msg_out.set_fetch_local_addr(msg_out);
+    // socket.send(&msg_out, addr).await.ok();
+}
+
+async fn udp_send_configure_update(
+    socket: &mut FramedSocket,
+    bytes: BytesMut,
+    addr: std::net::SocketAddr,
+    id_map: &mut std::collections::HashMap<String, std::net::SocketAddr>,
+) {
+    // let mut msg_out = FetchLocalAddr::new();
+    // msg_out.set_fetch_local_addr(msg_out);
+    // socket.send(&msg_out, addr).await.ok();
+}
+
+async fn udp_send_request_relay(
+    socket: &mut FramedSocket,
+    relay_server: String,
+    addr: std::net::SocketAddr,
+) {
+    let mut msg_out = RendezvousMessage::new();
+
+    msg_out.set_request_relay(RequestRelay {
+        relay_server,
+        ..Default::default()
+    });
+    //通过udp回复客户端打洞请求,提供一个中继cdn地址
+    socket.send(&msg_out, addr).await.ok();
+}
+
+async fn handle_udp(
+    socket: &mut FramedSocket,
+    bytes: BytesMut,
+    addr: std::net::SocketAddr,
+    id_map: &mut std::collections::HashMap<String, client>,
+) {
+    if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
+        match msg_in.union {
+            //不停的register_peer保持心跳,检测心跳告诉对方不在线
+            Some(rendezvous_message::Union::register_peer(rp)) => {
+                info!("register_peer {:?}", &addr);
+                let mut msg_out = RendezvousMessage::new();
+                if let Some(client) = id_map.get(&rp.id) {
+                    msg_out.set_register_peer_response(RegisterPeerResponse {
+                        request_pk: false,
+                        ..Default::default()
+                    });
+                } else {
+                    msg_out.set_register_peer_response(RegisterPeerResponse {
+                        request_pk: true,
+                        ..Default::default()
+                    });
+                };
+                id_map.insert(
+                    rp.id,
+                    client {
+                        timestamp: utils::now(),
+                        local_addr: addr,
+                        peer_addr: None,
+                    },
+                );
+                socket.send(&msg_out, addr.clone()).await.ok();
+            }
+            //完成
+            Some(rendezvous_message::Union::register_pk(rp)) => {
+                info!("register_pk{}", 22222);
+                let mut msg_out = RendezvousMessage::new();
+                msg_out.set_register_pk_response(RegisterPkResponse {
+                    result: register_pk_response::Result::OK.into(),
+                    ..Default::default()
+                });
+                socket.send(&msg_out, addr).await.ok();
+            }
+            //暂存没用
+            Some(rendezvous_message::Union::configure_update(rp)) => {
+                println!("register_peer {:?}", addr);
+                // id_map.insert(rp.id, addr);
+                // let mut msg_out = ConfigUpdate::new();
+                // msg_out.set_configure_update(msg_out);
+                // socket.send(&msg_out, addr).await.ok();
+            }
+            //暂时没用
+            Some(rendezvous_message::Union::software_update(rp)) => {
+                println!("register_peer {:?}", addr);
+                // id_map.insert(rp.id, addr);
+                // let mut msg_out = SoftwareUpdate::new();
+                // msg_out.set_software_update(msg_out);
+                // socket.send(&msg_out, addr).await.ok();
+            }
+
+            _ => {
+                println!("不匹配的指令");
+            }
+        }
+    }
+}
+
+async fn relay(
+    stream: FramedStream,
+    peer: FramedStream,
+    socket: &mut FramedSocket,
+    id_map: &mut std::collections::HashMap<String, client>,
+) {
+    let mut peer = peer;
+    let mut stream = stream;
+    peer.set_raw();
+    stream.set_raw();
+    loop {
+        tokio::select! {
+            Some(Ok((bytes, addr))) = socket.next() => {
+                //处理udp转发
+                handle_udp(socket, bytes, addr, id_map).await;
+            }
+            res = peer.next() => {
+                if let Some(Ok(bytes)) = res {
+                    stream.send_bytes(bytes.into()).await.ok();
+                } else {
+                    break;
+                }
+            },
+            res = stream.next() => {
+                if let Some(Ok(bytes)) = res {
+                    peer.send_bytes(bytes.into()).await.ok();
+                } else {
+                    break;
+                }
+            },
+        }
+    }
+}
+
+#[tokio::test]
+async fn tcp_listen() -> Result<()> {
+    let mut listener_active = new_listener("0.0.0.0:21117", false).await.unwrap();
+
+    loop {
+        let (stream, addr) = listener_active.accept().await?;
+        let mut stream = FramedStream::from(stream);
+        println!("{}", 222222);
+        while let Some(line) = stream.next_timeout(3000).await {
+            let line = line?;
+            println!("{:?}", line);
+            // sender.send(Event::Message(addr, line)).await.ok();
+        }
+    }
+    Ok(())
+}
