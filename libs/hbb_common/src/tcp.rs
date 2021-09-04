@@ -142,6 +142,7 @@ pub async fn new_listener<T: ToSocketAddrs>(addr: T, reuse: bool) -> ResultType<
         for addr in addr.to_socket_addrs().await? {
             let socket = super::new_socket(addr, true, true)?;
             socket.listen(DEFAULT_BACKLOG)?;
+
             return Ok(TcpListener::from_std(socket.into_tcp_listener())?);
         }
         bail!("could not resolve to any address");

@@ -7,9 +7,13 @@ mod tests {
 
     use hbb_common::anyhow::Context;
     use hbb_common::config::{Config, RENDEZVOUS_TIMEOUT};
-    use hbb_common::protobuf::ProtobufEnum;
-    use hbb_common::{to_socket_addr, ResultType};
+    use hbb_common::protobuf::{ProtobufEnum, Message};
+    use hbb_common::{to_socket_addr, ResultType, AddrMangle};
     use std::net::{SocketAddr, ToSocketAddrs};
+    use hbb_common::udp::FramedSocket;
+    use hbb_common::rendezvous_proto::{RendezvousMessage, RegisterPk, RegisterPeer, PunchHoleRequest, RequestRelay, LocalAddr, RelayResponse, TestNatRequest};
+    use hbb_common::tcp::FramedStream;
+    use uuid::Uuid;
 
     // pub fn to_socket_addr(host: &str) -> ResultType<SocketAddr> {
     //     let addrs: Vec<SocketAddr> = host.to_socket_addrs()?.collect();
@@ -331,3 +335,5 @@ mod tests {
         Ok(())
     }
 }
+
+fn main() {}

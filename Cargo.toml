@@ -30,4 +30,16 @@ path = "apps/demo3.rs"
 name = "demo4"
 path = "apps/demo4.rs"
 
+[[example]]
+name = "demo5"
+path = "apps/demo5.rs"
+
+[[example]]
+name = "demo6"
+path = "apps/demo6.rs"
+
+
+[[example]]
+name = "demo7"
+path = "apps/demo7.rs"
 
