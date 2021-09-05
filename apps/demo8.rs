@@ -12,7 +12,7 @@ use hbb_common::tokio::sync::mpsc;
 async fn main() -> io::Result<()> {
     let sock = UdpSocket::bind("0.0.0.0:8080".parse::<SocketAddr>().unwrap()).await?;
     let mut r = Arc::new(sock);
-    let s = r.clone();
+    let   s = r.clone();
     let (mut tx, mut rx) = mpsc::channel::<(Vec<u8>, SocketAddr)>(1_000);
 
     tokio::spawn(async move {

@@ -25,7 +25,6 @@ message VideoFrame {
   }
 }
 
-//屏幕信息
 message DisplayInfo {
   sint32 x = 1;
   sint32 y = 2;
@@ -35,7 +34,6 @@ message DisplayInfo {
   bool online = 6;
 }
 
-//转发
 message PortForward {
   string host = 1;
   int32 port = 2;

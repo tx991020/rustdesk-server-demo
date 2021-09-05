@@ -88,10 +88,10 @@ async fn main() -> Result<()> {
     let mut socket = FramedSocket::new(to_socket_addr("0.0.0.0:21116").unwrap()).await?;
 
 
-    let arc = Arc::new(socket);
 
 
-    tokio::spawn(udp_21116(arc.clone(), id_map.clone(), ip_rcv.clone()));
+
+    tokio::spawn(udp_21116(socket, id_map.clone(), ip_rcv.clone()));
 
 
 
@@ -580,10 +580,31 @@ async fn udp_21116(
     id_map: Arc<Mutex<HashMap<String, client>>>,
     receiver: Receiver<Event>,
 ) -> Result<()> {
+    let mut  s = Arc::new(socket);
+   let  mut r =s.clone();
 
     loop {
-        if let Some(Ok((bytes, addr))) = socket.next().await {
-            handle_udp(&mut socket, bytes, addr, id_map.clone(), receiver.clone()).await;
+        if let Some(Ok((bytes, addr))) = s.next().await {
+            handle_udp(&mut r, bytes, addr, id_map.clone(), receiver.clone()).await;
+            // println!("{}", "333");
+            tokio::spawn(async move {
+                // println!("{}", "333");
+
+                while let Ok(eve) = receiver.recv().await {
+                    match eve {
+                        Event::First(a) => {
+                            println!("{}", "first");
+                            udp_send_fetch_local_addr(s.clone, "".to_string(), a).await;
+                        }
+                        Event::Second(b) => {
+                            println!("{}", "second");
+                            udp_send_request_relay(s.clone(), "".to_string(), b).await;
+                        }
+                        Event::UnNone => {}
+                    }
+                }
+
+            });
         }
     }
 
@@ -662,7 +683,7 @@ async fn udp_send_configure_update(
 }
 
 async fn udp_send_request_relay(
-    mut socket: &mut FramedSocket,
+    socket: &mut FramedSocket,
     relay_server: String,
     addr: std::net::SocketAddr,
 ) -> Result<()> {
@@ -684,22 +705,7 @@ async fn handle_udp(
     id_map: Arc<Mutex<HashMap<String, client>>>,
     receiver: Receiver<Event>,
 ) {
-    // println!("{}", "333");
-    if !receiver.is_empty() {
-        if let Ok(eve) = receiver.recv().await {
-            match eve {
-                Event::First(a) => {
-                    println!("{}", "first");
-                    udp_send_fetch_local_addr(socket, "".to_string(), a).await;
-                }
-                Event::Second(b) => {
-                    println!("{}", "second");
-                    udp_send_request_relay(socket, "".to_string(), b).await;
-                }
-                Event::UnNone => {}
-            }
-        }
-    }
+
 
 
 
