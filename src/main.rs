@@ -88,7 +88,15 @@ async fn main() -> Result<()> {
     let mut socket = FramedSocket::new(to_socket_addr("0.0.0.0:21116").unwrap()).await?;
 
 
-    tokio::spawn(udp_21116(socket, id_map.clone(), ip_rcv.clone()));
+    let arc = Arc::new(socket);
+
+
+    tokio::spawn(udp_21116(arc.clone(), id_map.clone(), ip_rcv.clone()));
+
+
+
+
+
 
     tokio::spawn(tcp_passive_21117("0.0.0.0:21117", id_map.clone(), ip_sender.clone()));
     tokio::spawn(tcp_active_21116("0.0.0.0:21116", id_map, ip_sender.clone()));
@@ -504,7 +512,7 @@ async fn tcp_passive_21118_read_messages(mut stream: TcpStream, tx_from_passive:
                 }
                 Some(message::Union::login_response(hash)) => {
                     info!("passive login_response {:?}", &hash);
-                   
+
                     tx_from_passive.send(hash.write_to_bytes().unwrap()).await;
                 }
                 Some(message::Union::hash(hash)) => {
@@ -572,9 +580,25 @@ async fn udp_21116(
     id_map: Arc<Mutex<HashMap<String, client>>>,
     receiver: Receiver<Event>,
 ) -> Result<()> {
+
     loop {
         if let Some(Ok((bytes, addr))) = socket.next().await {
             handle_udp(&mut socket, bytes, addr, id_map.clone(), receiver.clone()).await;
+        }
+    }
+
+    Ok(())
+}
+async fn udp_21120(
+    mut socket: FramedSocket,
+    id_map: Arc<Mutex<HashMap<String, client>>>,
+    receiver: Receiver<Event>,
+) -> Result<()> {
+
+    loop {
+        if let Some(Ok((bytes, addr))) = socket.next().await {
+            handle_udp(&mut socket, bytes, addr, id_map.clone(), receiver.clone()).await;
+
         }
     }
 
@@ -660,7 +684,7 @@ async fn handle_udp(
     id_map: Arc<Mutex<HashMap<String, client>>>,
     receiver: Receiver<Event>,
 ) {
-    println!("{}", "333");
+    // println!("{}", "333");
     if !receiver.is_empty() {
         if let Ok(eve) = receiver.recv().await {
             match eve {
@@ -676,7 +700,8 @@ async fn handle_udp(
             }
         }
     }
-    println!("{}", "222");
+
+
 
     if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
         match msg_in.union {
