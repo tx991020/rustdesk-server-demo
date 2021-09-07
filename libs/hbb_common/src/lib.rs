@@ -37,7 +37,6 @@ pub type Stream = tcp::FramedStream;
 pub async fn sleep(sec: f32) {
     tokio::time::sleep(time::Duration::from_secs_f32(sec)).await;
 }
-
 #[macro_export]
 macro_rules! allow_err {
     ($e:expr) => {
@@ -52,6 +51,23 @@ macro_rules! allow_err {
             );
         } else {
         }
+    };
+}
+
+
+#[macro_export]
+macro_rules! allow_info {
+    ($e:expr) => {
+
+            log::info!(
+                "{:?}, {}:{}:{}:{}",
+                $e,
+                module_path!(),
+                file!(),
+                line!(),
+                column!()
+            );
+
     };
 }
 
