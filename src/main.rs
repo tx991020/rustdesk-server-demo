@@ -87,18 +87,7 @@ async fn main() -> Result<()> {
     // udp_demo("", &mut id_map);
     // tcp_21117("0.0.0.0:21117").await?;
     let mut socket = FramedSocket::new(to_socket_addr("0.0.0.0:21116").unwrap()).await?;
-
-
-
-
-
     tokio::spawn(udp_21116(socket, id_map.clone(), ip_rcv.clone()));
-
-
-
-
-
-
     tokio::spawn(tcp_passive_21117("0.0.0.0:21117", id_map.clone(), ip_sender.clone()));
     tokio::spawn(tcp_active_21116("0.0.0.0:21116", id_map, ip_sender.clone()));
     tokio::spawn(tcp_passive_21118("0.0.0.0:21118", tx_from_passive, rx_from_active.clone()));
@@ -242,8 +231,7 @@ async fn tcp_active_21119(addr: &str, tx_from_active: Sender<Vec<u8>>, rx_from_p
     let mut listener_active = new_listener(addr, false).await?;
     loop {
         let (stream, addr) = listener_active.accept().await?;
-        // Accept the next connection.
-        let (stream, addr) = listener_active.accept().await?;
+
 
         // Read messages from the client and ignore I/O errors when the client quits.
         tcp_active_21119_read_messages(stream, tx_from_active.clone(), rx_from_passive.clone()).await?;
@@ -410,52 +398,52 @@ async fn dispath_message_21118(stream:Arc<Mutex<FramedStream>>,rx_from_passive:R
             if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                 match msg_in.union {
                     Some(message::Union::hash(hash)) => {
-                        info!("21119 Receiver hash {:?}",&hash);
+                        info!("21118 Receiver hash {:?}",&hash);
                         stream.send_raw(hash.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::test_delay(hash)) => {
-                        info!("21119 Receiver test_delay {:?}",&hash);
+                        info!("21118 Receiver test_delay {:?}",&hash);
                         stream.send_raw(hash.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::video_frame(hash)) =>{
-                        info!("21119 Receiver video_frame {:?}",&hash);
+                        info!("21118 Receiver video_frame {:?}",&hash);
                         stream.send_raw(hash.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::login_response(hash)) =>{
-                        info!("21119 Receiver login_response {:?}",&hash);
+                        info!("21118 Receiver login_response {:?}",&hash);
                         stream.send_raw(hash.write_to_bytes().unwrap()).await;
                     }
 
                     Some(message::Union::cursor_data(cd))=>{
-                        info!("21119 Receiver cursor_data{:?}",&cd);
+                        info!("21118 Receiver cursor_data{:?}",&cd);
                         stream.send_raw(cd.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::cursor_id(id))=>{
-                        info!("21119 Receiver cursor_id{:?}",&id);
+                        info!("21118 Receiver cursor_id{:?}",&id);
                         // stream.send_raw(id.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::cursor_position(cp)) => {
-                        info!("21119 Receiver cursor_position{:?}",&cp);
+                        info!("21118 Receiver cursor_position{:?}",&cp);
                         stream.send_raw(cp.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::clipboard(cb)) => {
-                        info!("21119 Receiver clipboard{:?}",&cb);
+                        info!("21118 Receiver clipboard{:?}",&cb);
                         stream.send_raw(cb.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::file_response(fr)) => {
-                        info!("21119 Receiver file_response{:?}",&fr);
+                        info!("21118 Receiver file_response{:?}",&fr);
                         stream.send_raw(fr.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::misc(misc))  => {
-                        info!("21119 Receiver misc{:?}",&misc);
+                        info!("21118 Receiver misc{:?}",&misc);
                         stream.send_raw(misc.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::audio_frame(frame)) =>{
-                        info!("21119 Receiver audio_frame{:?}",&frame);
+                        info!("21118 Receiver audio_frame{:?}",&frame);
                         stream.send_raw(frame.write_to_bytes().unwrap()).await;
                     }
                     _ => {
-                        println!("tcp_active_21119  read_messages {:?}", &msg_in);
+                        println!("tcp_active_21118  read_messages {:?}", &msg_in);
                     }
                 }
             }
@@ -473,9 +461,6 @@ async fn tcp_active_21119_read_messages(mut stream: TcpStream, tx_from_active: S
     let addr = stream1.get_ref().local_addr()?;
 
     let mut stream2=Arc::new(Mutex::new(stream1));
-
-
-
 
     dispath_message_21119(stream2.clone(), rx_from_passive.clone()).await;
 
@@ -558,30 +543,9 @@ async fn tcp_passive_21118_read_messages(mut stream: TcpStream, tx_from_passive:
 
     let mut stream2=Arc::new(Mutex::new(stream));
 
-
-
-
     dispath_message_21118(stream2.clone(), rx_from_active.clone()).await;
 
     let mut stream = stream2.lock().await;
-
-
-    // if !rx_from_active.is_empty() {
-    //     if let Ok(eve) = rx_from_active.recv().await {
-    //         match eve {
-    //             Event::First(a) => {
-    //                 println!("{}", "first");
-    //                 udp_send_fetch_local_addr(socket, "".to_string(), a).await;
-    //             }
-    //             Event::Second(b) => {
-    //                 println!("{}", "second");
-    //                 udp_send_request_relay(socket, "".to_string(), b).await;
-    //             }
-    //             Event::UnNone => {}
-    //         }
-    //     }
-    // }
-
 
     if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
         if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
@@ -700,10 +664,6 @@ async fn udp_21116(
     id_map: Arc<Mutex<HashMap<String, client>>>,
     receiver: Receiver<Event>,
 ) -> Result<()> {
-
-
-
-
 
     let mut r = Arc::new(Mutex::new(socket));
     udp_dispatch(r.clone(),receiver.clone()).await;
