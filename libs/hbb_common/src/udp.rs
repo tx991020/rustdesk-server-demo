@@ -10,6 +10,7 @@ use std::{
 };
 use tokio::{net::ToSocketAddrs, net::UdpSocket};
 use tokio_util::{codec::BytesCodec, udp::UdpFramed};
+use std::sync::Arc;
 
 pub struct FramedSocket(UdpFramed<BytesCodec>);
 
@@ -20,6 +21,14 @@ impl Deref for FramedSocket {
         &self.0
     }
 }
+
+
+impl DerefMut for FramedSocket {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 
 fn new_socket(addr: SocketAddr, reuse: bool) -> Result<Socket, std::io::Error> {
     let socket = match addr {
@@ -38,11 +47,7 @@ fn new_socket(addr: SocketAddr, reuse: bool) -> Result<Socket, std::io::Error> {
     Ok(socket)
 }
 
-impl DerefMut for FramedSocket {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+
 
 impl FramedSocket {
     pub async fn new<T: ToSocketAddrs>(addr: T) -> ResultType<Self> {

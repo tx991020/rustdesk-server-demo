@@ -15,7 +15,7 @@ use hbb_common::{
     tcp::{new_listener, FramedStream},
     to_socket_addr, tokio,
     udp::FramedSocket,
-    utils, AddrMangle,
+     AddrMangle,
 };
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
@@ -39,6 +39,7 @@ use tracing_subscriber;
 use std::cell::RefCell;
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use hbb_common::tokio_util::codec::{Framed, BytesCodec};
 
 #[derive(Debug, Clone)]
 struct client {
@@ -68,7 +69,7 @@ pub fn get_time() -> i64 {
         .unwrap_or(0) as _
 }
 
-#[tokio::main(basic_scheduler)]
+#[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
@@ -335,13 +336,14 @@ async fn tcp_21116_read_rendezvous_message(
     Ok(())
 }
 
-async fn tcp_active_21119_read_messages(mut stream: TcpStream, tx_from_active: Sender<Vec<u8>>, rx_from_passive: Receiver<Vec<u8>>) -> Result<()> {
-    let mut stream = FramedStream::from(stream);
-    let addr = stream.get_ref().local_addr()?;
-    let addr = stream.get_ref().local_addr()?;
 
-    if !rx_from_passive.is_empty() {
-        if let Ok(bytes) = rx_from_passive.recv().await {
+
+async fn dispath_message_21119(stream:Arc<Mutex<FramedStream>>,rx_from_passive:Receiver<Vec<u8>>) {
+
+    tokio::spawn(async move {
+        let mut stream = stream.lock().await;
+
+        while let Ok(bytes) = rx_from_passive.recv().await {
             if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                 match msg_in.union {
                     Some(message::Union::hash(hash)) => {
@@ -350,7 +352,7 @@ async fn tcp_active_21119_read_messages(mut stream: TcpStream, tx_from_active: S
                     }
                     Some(message::Union::test_delay(hash)) => {
                         info!("21119 Receiver test_delay {:?}",&hash);
-                      stream.send_raw(hash.write_to_bytes().unwrap()).await;
+                        stream.send_raw(hash.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::video_frame(hash)) =>{
                         info!("21119 Receiver video_frame {:?}",&hash);
@@ -395,8 +397,89 @@ async fn tcp_active_21119_read_messages(mut stream: TcpStream, tx_from_active: S
                 }
             }
         }
-    }
+    });
 
+}
+
+async fn dispath_message_21118(stream:Arc<Mutex<FramedStream>>,rx_from_passive:Receiver<Vec<u8>>) {
+
+    tokio::spawn(async move {
+        let mut stream = stream.lock().await;
+
+        while let Ok(bytes) = rx_from_passive.recv().await {
+            if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
+                match msg_in.union {
+                    Some(message::Union::hash(hash)) => {
+                        info!("21119 Receiver hash {:?}",&hash);
+                        stream.send_raw(hash.write_to_bytes().unwrap()).await;
+                    }
+                    Some(message::Union::test_delay(hash)) => {
+                        info!("21119 Receiver test_delay {:?}",&hash);
+                        stream.send_raw(hash.write_to_bytes().unwrap()).await;
+                    }
+                    Some(message::Union::video_frame(hash)) =>{
+                        info!("21119 Receiver video_frame {:?}",&hash);
+                        stream.send_raw(hash.write_to_bytes().unwrap()).await;
+                    }
+                    Some(message::Union::login_response(hash)) =>{
+                        info!("21119 Receiver login_response {:?}",&hash);
+                        stream.send_raw(hash.write_to_bytes().unwrap()).await;
+                    }
+
+                    Some(message::Union::cursor_data(cd))=>{
+                        info!("21119 Receiver cursor_data{:?}",&cd);
+                        stream.send_raw(cd.write_to_bytes().unwrap()).await;
+                    }
+                    Some(message::Union::cursor_id(id))=>{
+                        info!("21119 Receiver cursor_id{:?}",&id);
+                        // stream.send_raw(id.write_to_bytes().unwrap()).await;
+                    }
+                    Some(message::Union::cursor_position(cp)) => {
+                        info!("21119 Receiver cursor_position{:?}",&cp);
+                        stream.send_raw(cp.write_to_bytes().unwrap()).await;
+                    }
+                    Some(message::Union::clipboard(cb)) => {
+                        info!("21119 Receiver clipboard{:?}",&cb);
+                        stream.send_raw(cb.write_to_bytes().unwrap()).await;
+                    }
+                    Some(message::Union::file_response(fr)) => {
+                        info!("21119 Receiver file_response{:?}",&fr);
+                        stream.send_raw(fr.write_to_bytes().unwrap()).await;
+                    }
+                    Some(message::Union::misc(misc))  => {
+                        info!("21119 Receiver misc{:?}",&misc);
+                        stream.send_raw(misc.write_to_bytes().unwrap()).await;
+                    }
+                    Some(message::Union::audio_frame(frame)) =>{
+                        info!("21119 Receiver audio_frame{:?}",&frame);
+                        stream.send_raw(frame.write_to_bytes().unwrap()).await;
+                    }
+                    _ => {
+                        println!("tcp_active_21119  read_messages {:?}", &msg_in);
+                    }
+                }
+            }
+        }
+    });
+
+}
+
+
+
+
+async fn tcp_active_21119_read_messages(mut stream: TcpStream, tx_from_active: Sender<Vec<u8>>, rx_from_passive: Receiver<Vec<u8>>) -> Result<()> {
+    let mut stream1 = FramedStream::from(stream);
+    let addr = stream1.get_ref().local_addr()?;
+    let addr = stream1.get_ref().local_addr()?;
+
+    let mut stream2=Arc::new(Mutex::new(stream1));
+
+
+
+
+    dispath_message_21119(stream2.clone(), rx_from_passive.clone()).await;
+
+   let mut stream = stream2.lock().await;
 
     if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
         if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
@@ -472,6 +555,17 @@ async fn tcp_active_21119_read_messages(mut stream: TcpStream, tx_from_active: S
 async fn tcp_passive_21118_read_messages(mut stream: TcpStream, tx_from_passive: Sender<Vec<u8>>, rx_from_active: Receiver<Vec<u8>>) -> Result<()> {
     let mut stream = FramedStream::from(stream);
     let addr = stream.get_ref().local_addr()?;
+
+    let mut stream2=Arc::new(Mutex::new(stream));
+
+
+
+
+    dispath_message_21118(stream2.clone(), rx_from_active.clone()).await;
+
+    let mut stream = stream2.lock().await;
+
+
     // if !rx_from_active.is_empty() {
     //     if let Ok(eve) = rx_from_active.recv().await {
     //         match eve {
@@ -487,6 +581,8 @@ async fn tcp_passive_21118_read_messages(mut stream: TcpStream, tx_from_passive:
     //         }
     //     }
     // }
+
+
     if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
         if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
             match msg_in.union {
@@ -575,50 +671,48 @@ async fn tcp_passive_21118_read_messages(mut stream: TcpStream, tx_from_passive:
     Ok(())
 }
 
+async fn udp_dispatch(socket :Arc<Mutex<FramedSocket>>, receiver:Receiver<Event> ) {
+    tokio::spawn(async move {
+
+        // println!("{}", "333");
+
+        while let Ok(eve) = receiver.clone().recv().await {
+            match eve {
+                Event::First(a) => {
+                    println!("{}", "first");
+                    ;
+                    udp_send_fetch_local_addr(socket.clone(), "".to_string(), a).await;
+                }
+                Event::Second(b) => {
+                    println!("{}", "second");
+                    let guard = socket.lock().await;
+                    udp_send_request_relay(socket.clone(), "".to_string(), b).await;
+                }
+                Event::UnNone => {}
+            }
+        }
+
+    });
+}
+
 async fn udp_21116(
     mut socket: FramedSocket,
     id_map: Arc<Mutex<HashMap<String, client>>>,
     receiver: Receiver<Event>,
 ) -> Result<()> {
-    let mut  s = Arc::new(socket);
-   let  mut r =s.clone();
 
+
+
+
+
+    let mut r = Arc::new(Mutex::new(socket));
+    udp_dispatch(r.clone(),receiver.clone()).await;
     loop {
-        if let Some(Ok((bytes, addr))) = s.next().await {
-            handle_udp(&mut r, bytes, addr, id_map.clone(), receiver.clone()).await;
-            // println!("{}", "333");
-            tokio::spawn(async move {
-                // println!("{}", "333");
 
-                while let Ok(eve) = receiver.recv().await {
-                    match eve {
-                        Event::First(a) => {
-                            println!("{}", "first");
-                            udp_send_fetch_local_addr(s.clone, "".to_string(), a).await;
-                        }
-                        Event::Second(b) => {
-                            println!("{}", "second");
-                            udp_send_request_relay(s.clone(), "".to_string(), b).await;
-                        }
-                        Event::UnNone => {}
-                    }
-                }
+        let mut guard = r.lock().await;
+        if let Some(Ok((bytes, addr))) =guard.next().await {
+            handle_udp(r.clone(), bytes, addr, id_map.clone(), receiver.clone()).await;
 
-            });
-        }
-    }
-
-    Ok(())
-}
-async fn udp_21120(
-    mut socket: FramedSocket,
-    id_map: Arc<Mutex<HashMap<String, client>>>,
-    receiver: Receiver<Event>,
-) -> Result<()> {
-
-    loop {
-        if let Some(Ok((bytes, addr))) = socket.next().await {
-            handle_udp(&mut socket, bytes, addr, id_map.clone(), receiver.clone()).await;
 
         }
     }
@@ -641,10 +735,11 @@ async fn udp_send_register_peer_response(
 //被控第一步//从中间收
 
 async fn udp_send_fetch_local_addr(
-    socket: &mut FramedSocket,
+    socket1 :Arc<Mutex<FramedSocket>>,
     relay_server: String,
     addr: std::net::SocketAddr,
 ) -> Result<()> {
+    let mut socket = socket1.lock().await;
     let mut msg_out = RendezvousMessage::new();
     let addr1 = socket
         .get_ref()
@@ -661,7 +756,7 @@ async fn udp_send_fetch_local_addr(
 }
 
 async fn udp_send_punch_hole(
-    mut socket: &mut FramedSocket,
+    socket1 :Arc<Mutex<FramedSocket>>,
     bytes: BytesMut,
     addr: std::net::SocketAddr,
     id_map: &mut std::collections::HashMap<String, std::net::SocketAddr>,
@@ -672,7 +767,7 @@ async fn udp_send_punch_hole(
 }
 
 async fn udp_send_configure_update(
-    socket: &mut FramedSocket,
+    socket1 :Arc<Mutex<FramedSocket>>,
     bytes: BytesMut,
     addr: std::net::SocketAddr,
     id_map: std::collections::HashMap<String, std::net::SocketAddr>,
@@ -683,10 +778,11 @@ async fn udp_send_configure_update(
 }
 
 async fn udp_send_request_relay(
-    socket: &mut FramedSocket,
+    socket1 :Arc<Mutex<FramedSocket>>,
     relay_server: String,
     addr: std::net::SocketAddr,
 ) -> Result<()> {
+    let mut socket = socket1.lock().await;
     let mut msg_out = RendezvousMessage::new();
 
     msg_out.set_request_relay(RequestRelay {
@@ -699,7 +795,7 @@ async fn udp_send_request_relay(
 }
 
 async fn handle_udp(
-    socket: &mut FramedSocket,
+    socket1 :Arc<Mutex<FramedSocket>>,
     bytes: BytesMut,
     addr: std::net::SocketAddr,
     id_map: Arc<Mutex<HashMap<String, client>>>,
@@ -707,7 +803,7 @@ async fn handle_udp(
 ) {
 
 
-
+    let mut socket = socket1.lock().await;
 
     if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
         match msg_in.union {
@@ -730,7 +826,7 @@ async fn handle_udp(
                 id_map.insert(
                     rp.id,
                     client {
-                        timestamp: utils::now(),
+                        timestamp: get_time() as u64,
                         local_addr: addr,
 
                     },
