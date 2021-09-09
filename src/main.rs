@@ -677,7 +677,7 @@ async fn tcp_passive_21118_read_messages(
                                 }
                             }
                         }
-                    Some(Ok(bytes)) = stream.next() => {
+                    Some(Ok(bytes)) =  stream.next_timeout(3000) =>  {
                         if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                             match msg_in.union{
                                  Some(message::Union::signed_id(hash)) => {
@@ -798,16 +798,6 @@ async fn tcp_passive_21118_read_messages(
     }
 }
 
-
-
-
-
-
-//             _ => {
-//                 allow_info!(format!("tcp_passive_21118  read_messages {:?}", &msg_in));
-//             }
-//         }
-//     }
 
 
 async fn udp_21116(
