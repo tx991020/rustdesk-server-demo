@@ -12,6 +12,7 @@ tracing = "0.1"
 tracing-subscriber = "0.2"
 async-channel = "1.6.1"
 futures = "0.3.16"
+async-tungstenite = "*"
 
 
 
@@ -48,3 +49,25 @@ path = "apps/demo7.rs"
 name = "demo8"
 path = "apps/demo8.rs"
 
+
+[[example]]
+name = "demo9"
+path = "apps/demo9.rs"
+
+[[example]]
+name = "demo10"
+path = "apps/demo10.rs"
+
+[[example]]
+name = "demo11"
+path = "apps/demo11.rs"
+
+
+[[example]]
+name = "demo12"
+path = "apps/demo12.rs"
+
+
+[[example]]
+name = "demo13"
+path = "apps/demo13.rs"
