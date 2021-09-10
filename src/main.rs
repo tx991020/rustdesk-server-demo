@@ -398,7 +398,7 @@ async fn tcp_active_21119_read_messages(
                                }
 
                                Some(message::Union::cursor_data(cd)) => {
-                                   info!("21119 Receiver cursor_data{:?}", &cd);
+                                 allow_info!(format!("21119 Receiver cursor_data{:?}", &cd));
                                    let mut msg = Message::new();
                                    msg.set_cursor_data(cd);
                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
