@@ -79,7 +79,7 @@ pub fn get_time() -> i64 {
 async fn main() -> Result<()> {
     let file_appender = tracing_appender::rolling::hourly("/Users/andy/CLionProjects/rustdesk-server-demo", "log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    let collector = tracing_subscriber::fmt()
+    tracing_subscriber::fmt()
         .with_writer(non_blocking)
         .init();
 
@@ -765,7 +765,7 @@ async fn tcp_passive_21118_read_messages(
                                         tx_from_passive.send(msg.write_to_bytes().unwrap()).await?;
                                     }
                                     Some(message::Union::clipboard(hash)) => {
-                                      
+
                                         let mut msg = Message::new();
                                         msg.set_clipboard(hash);
                                         tx_from_passive.send(msg.write_to_bytes().unwrap()).await?;
