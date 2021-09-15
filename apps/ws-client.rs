@@ -1,28 +1,35 @@
 
 
-use async_tungstenite::{async_std::connect_async, tungstenite::Error, tungstenite::Result};
-use futures::prelude::*;
+use hbb_common::tokio;
+use hbb_common::futures_util::{StreamExt,SinkExt};
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{Error, Result},
+};
 
 #[macro_use]
 extern crate tracing;
 
+
+use url::Url;
+
 const AGENT: &str = "Tungstenite";
 
 async fn get_case_count() -> Result<u32> {
-    let (mut socket, _) = connect_async("ws://localhost:9001/getCaseCount").await?;
+    let (mut socket, _) = connect_async(
+        Url::parse("ws://localhost:9001/getCaseCount").expect("Can't connect to case count URL"),
+    )
+        .await?;
     let msg = socket.next().await.expect("Can't fetch case count")?;
     socket.close(None).await?;
-    Ok(msg
-        .into_text()?
-        .parse::<u32>()
-        .expect("Can't parse case count"))
+    Ok(msg.into_text()?.parse::<u32>().expect("Can't parse case count"))
 }
 
 async fn update_reports() -> Result<()> {
-    let (mut socket, _) = connect_async(&format!(
-        "ws://localhost:9001/updateReports?agent={}",
-        AGENT
-    ))
+    let (mut socket, _) = connect_async(
+        Url::parse(&format!("ws://localhost:9001/updateReports?agent={}", AGENT))
+            .expect("Can't update reports"),
+    )
         .await?;
     socket.close(None).await?;
     Ok(())
@@ -30,7 +37,9 @@ async fn update_reports() -> Result<()> {
 
 async fn run_test(case: u32) -> Result<()> {
     info!("Running test case {}", case);
-    let case_url = &format!("ws://localhost:9001/runCase?case={}&agent={}", case, AGENT);
+    let case_url =
+        Url::parse(&format!("ws://localhost:9001/runCase?case={}&agent={}", case, AGENT))
+            .expect("Bad testcase URL");
 
     let (mut ws_stream, _) = connect_async(case_url).await?;
     while let Some(msg) = ws_stream.next().await {
@@ -43,8 +52,11 @@ async fn run_test(case: u32) -> Result<()> {
     Ok(())
 }
 
-async fn run() {
-    env_logger::init();
+
+
+#[tokio::main]
+async fn main() {
+
 
     let total = get_case_count().await.expect("Error getting case count");
 
@@ -58,8 +70,4 @@ async fn run() {
     }
 
     update_reports().await.expect("Error updating reports");
-}
-
-fn main() {
-    async_std::task::block_on(run());
 }

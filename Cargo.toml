@@ -13,7 +13,8 @@ tracing = "0.1.26"
 tracing-subscriber = "0.2.20"
 async-channel = "1.6.1"
 futures = "0.3.16"
-async-tungstenite = "*"
+tokio-tungstenite = "*"
+url = "2.2.2"
 
 
 
@@ -52,12 +53,12 @@ path = "apps/demo8.rs"
 
 
 [[example]]
-name = "demo9"
-path = "apps/demo9.rs"
+name = "ws-server"
+path = "apps/ws-server.rs"
 
 [[example]]
-name = "demo10"
-path = "apps/demo10.rs"
+name = "ws-client"
+path = "apps/ws-client.rs"
 
 [[example]]
 name = "demo11"
@@ -72,3 +73,13 @@ path = "apps/demo12.rs"
 [[example]]
 name = "demo13"
 path = "apps/demo13.rs"
+
+
+[[example]]
+name = "forward"
+path = "apps/forward.rs"
+
+
+[[example]]
+name = "broadcast"
+path = "apps/broadcast.rs"

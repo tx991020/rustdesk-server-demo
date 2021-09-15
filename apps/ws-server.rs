@@ -1,14 +1,11 @@
 
 
-use async_tungstenite::{
-    accept_async,
-    tungstenite::{Error, Result},
-};
-use futures::prelude::*;
-use hbb_common::tokio::net::{TcpListener, TcpStream};
-use hbb_common::tokio::net::unix::SocketAddr;
-#[macro_use]
-extern crate tracing;
+use std::net::SocketAddr;
+use hbb_common::tokio::net::{TcpListener};
+use tokio_tungstenite::{accept_async, tungstenite::Error,tungstenite::Result};
+use hbb_common::tokio;
+use hbb_common::tokio::net::TcpStream;
+use hbb_common::futures_util::{StreamExt,SinkExt};
 
 async fn accept_connection(peer: SocketAddr, stream: TcpStream) {
     if let Err(e) = handle_connection(peer, stream).await {
@@ -34,7 +31,12 @@ async fn handle_connection(peer: SocketAddr, stream: TcpStream) -> Result<()> {
     Ok(())
 }
 
-async fn run() {
+#[macro_use]
+extern crate tracing;
+
+
+#[tokio::main]
+async fn main() {
 
 
     let addr = "127.0.0.1:9002";
@@ -42,15 +44,9 @@ async fn run() {
     info!("Listening on: {}", addr);
 
     while let Ok((stream, _)) = listener.accept().await {
-        let peer = stream
-            .peer_addr()
-            .expect("connected streams should have a peer address");
+        let peer = stream.peer_addr().expect("connected streams should have a peer address");
         info!("Peer address: {}", peer);
 
-        async_std::task::spawn(accept_connection(peer, stream));
+        tokio::spawn(accept_connection(peer, stream));
     }
-}
-
-fn main() {
-    async_std::task::block_on(run());
 }

@@ -45,12 +45,20 @@ use std::collections::HashMap;
 use std::io::Error;
 use std::sync::Arc;
 use tracing_subscriber;
+use hbb_common::tokio::sync::mpsc::UnboundedSender;
+
+
+type Tx = UnboundedSender<Vec<u8>>;
+type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
+
 
 #[derive(Debug, Clone)]
 struct client {
     //心跳
     timestamp: u64,
     local_addr: std::net::SocketAddr,
+    //记录当前进度
+    // current_step:i8,
 }
 
 #[derive(Debug, Clone)]
@@ -96,13 +104,16 @@ async fn main() -> Result<()> {
     let mut id_map: Arc<Mutex<HashMap<String, client>>> = Arc::new(Mutex::new(HashMap::new()));
     // udp_demo("", &mut id_map);
     // tcp_21117("0.0.0.0:21117").await?;
-
+    //完成
+    //todo 加定时遍历id_map 删除时间过小的
+    // 防止两人同时连同一人
     tokio::spawn(udp_21116(id_map.clone(), ip_rcv.clone()));
     tokio::spawn(tcp_passive_21117(
         "0.0.0.0:21117",
         id_map.clone(),
         ip_sender.clone(),
     ));
+    //完成
     tokio::spawn(tcp_active_21116("0.0.0.0:21116", id_map, ip_sender.clone()));
     tokio::spawn(tcp_passive_21118(
         "0.0.0.0:21118",
@@ -131,7 +142,7 @@ async fn tcp_active_21116(
         let (stream, addr) = listener_active.accept().await?;
 
         // Read messages from the client and ignore I/O errors when the client quits.
-        tcp_21116_read_rendezvous_message(stream, id_map.clone(), sender.clone()).await?;
+        tokio::spawn(tcp_21116_read_rendezvous_message(stream, id_map.clone(), sender.clone()));
     }
 
     Ok(())
@@ -149,13 +160,13 @@ async fn tcp_passive_21117(
         let (stream, addr) = listener_active.accept().await?;
 
         // Read messages from the client and ignore I/O errors when the client quits.
-        tcp_21117_read_rendezvous_message(stream, id_map.clone(), sender.clone()).await;
+        tokio::spawn(tcp_21117_read_rendezvous_message(stream, id_map.clone(), sender.clone()));
     }
 
     Ok(())
 }
 
-
+//todo 防止重发,记录当前进度
 async fn tcp_21117_read_rendezvous_message(
     mut stream1: TcpStream,
     id_map: Arc<Mutex<HashMap<String, client>>>,
@@ -248,12 +259,12 @@ async fn tcp_passive_21118(
 ) -> Result<()> {
     let mut listener_active = new_listener(addr, false).await?;
     loop {
-        let (stream, addr) = listener_active.accept().await?;
+        let (stream, addr1) = listener_active.accept().await?;
         println!("{}", "6666");
 
         // Read messages from the client and ignore I/O errors when the client quits.
-        tcp_passive_21118_read_messages(stream, tx_from_passive.clone(), rx_from_active.clone())
-            .await?;
+
+        tokio::spawn(tcp_passive_21118_read_messages(stream, tx_from_passive.clone(), rx_from_active.clone(),addr1));
     }
 
     Ok(())
@@ -266,16 +277,17 @@ async fn tcp_active_21119(
 ) -> Result<()> {
     let mut listener_active = new_listener(addr, false).await?;
     loop {
-        let (stream, addr) = listener_active.accept().await?;
+        let (stream, addr1) = listener_active.accept().await?;
 
         // Read messages from the client and ignore I/O errors when the client quits.
-        tcp_active_21119_read_messages(stream, tx_from_active.clone(), rx_from_passive.clone())
-            .await?;
+        tokio::spawn(tcp_active_21119_read_messages(stream, tx_from_active.clone(), rx_from_passive.clone(),addr1));
     }
 
     Ok(())
 }
 
+
+//
 async fn tcp_21116_read_rendezvous_message(
     mut stream: TcpStream,
     id_map: Arc<Mutex<HashMap<String, client>>>,
@@ -286,6 +298,7 @@ async fn tcp_21116_read_rendezvous_message(
     if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
         if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
             match msg_in.union {
+                //打洞第二步
                 Some(rendezvous_message::Union::local_addr(ph)) => {
                     allow_info!(format!("{:?}", &ph));
                     let remote_desk_id = ph.id;
@@ -314,6 +327,7 @@ async fn tcp_21116_read_rendezvous_message(
                     });
                     stream.send(&msg_out).await;
                 }
+                //打洞第一步
                 Some(rendezvous_message::Union::punch_hole_request(ph)) => {
                     allow_info!(format!("{:?}", &ph));
                     let addr1 = stream.get_ref().local_addr()?;
@@ -365,6 +379,7 @@ async fn tcp_active_21119_read_messages(
     mut stream1: TcpStream,
     tx_from_active: Sender<Vec<u8>>,
     rx_from_passive: Receiver<Vec<u8>>,
+    addr:SocketAddr,
 ) -> Result<()> {
     let mut stream = FramedStream::from(stream1);
 
@@ -572,6 +587,7 @@ async fn tcp_passive_21118_read_messages(
     mut stream1: TcpStream,
     tx_from_passive: Sender<Vec<u8>>,
     rx_from_active: Receiver<Vec<u8>>,
+    addr:SocketAddr
 ) -> Result<()> {
     let mut stream = FramedStream::from(stream1);
 

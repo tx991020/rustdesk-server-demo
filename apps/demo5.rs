@@ -23,11 +23,11 @@ async fn main() -> Result<()> {
 
 async fn tcp_21117(addr: &str) -> Result<()> {
     let mut listener_active = new_listener(addr, false).await?;
+
     loop {
         // Accept the next connection.
 
         let (stream, addr) = listener_active.accept().await?;
-
         // Read messages from the client and ignore I/O errors when the client quits.
         read_messages(stream).await?;
     }
