@@ -74,6 +74,10 @@ path = "apps/demo12.rs"
 name = "demo13"
 path = "apps/demo13.rs"
 
+[[example]]
+name = "demo14"
+path = "apps/demo14.rs"
+
 
 [[example]]
 name = "forward"
@@ -83,3 +87,9 @@ path = "apps/forward.rs"
 [[example]]
 name = "broadcast"
 path = "apps/broadcast.rs"
+
+
+
+[[example]]
+name = "proxy"
+path = "apps/proxy.rs"

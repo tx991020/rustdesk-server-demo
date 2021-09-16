@@ -16,6 +16,9 @@ async fn accept_connection(peer: SocketAddr, stream: TcpStream) {
     }
 }
 
+
+
+
 async fn handle_connection(peer: SocketAddr, stream: TcpStream) -> Result<()> {
     let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
 
