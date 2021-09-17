@@ -438,6 +438,7 @@ async fn tcp_active_21119_read_messages(
         select! {
 
                Ok(bytes) = rx1.recv() => {
+                println!("{}", "21119 ---------------- recv");
                    if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                        match msg_in.union {
                                 Some(message::Union::hash(hash)) => {
@@ -648,19 +649,24 @@ async fn tcp_passive_21118_read_messages(
 
     let (tx, mut rx) = unbounded::<Vec<u8>>();
     let (tx1, mut rx1) = unbounded::<Vec<u8>>();
-    println!("21118 BBBBBBBBBBBBBBBBB{:?}", &addr);
+
     //给lock加作用域
     {
         let mut s = state.lock().await;
-        println!("21118 DDDDDDDDDDDDDDDD");
+
         s.receivers_19.insert(addr.ip().to_string(), rx.clone());
 
         let ip = addr.ip().to_string();
         println!("21118 1111111111{:?},{:#?},{:#?}", &ip, s.kv, s.vk);
-        let host = s.kv.get(&ip).context("not get remote ip")?;
+        let res = s.kv.get(&ip).context("not get remote ip");
+        if res.is_err() {
+            println!("{}", "21111118 6666666")
+        }
+        let host = res?;
+
         println!("21118 22222222{:?}", &host);
 
-        if let Some(r) = s.receivers_19.get(host) {
+        if let Some(r) = s.receivers_18.get(host) {
             tokio::spawn(fx2(tx1.clone(), r.clone()));
         }
     }
@@ -670,6 +676,7 @@ async fn tcp_passive_21118_read_messages(
     loop {
         select! {
         Ok(bytes) = rx1.recv() => {
+                 println!("{}", "21118---------------------recv");
               if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                  match msg_in.union {
                      //完成
@@ -775,32 +782,32 @@ async fn tcp_passive_21118_read_messages(
              if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                  match msg_in.union{
                       Some(message::Union::signed_id(hash)) => {
-                     allow_info!(format!("passive signed_id {:?}", &hash));
+                     allow_info!(format!("21118 passive signed_id {:?}", &hash));
                      let mut msg = Message::new();
                      msg.set_signed_id(hash);
                      tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                      Some(message::Union::public_key(hash)) =>{
-                           allow_info!(format!("passive public_key {:?}", &hash));
+                           allow_info!(format!("21118 passive public_key {:?}", &hash));
                          let mut msg = Message::new();
                          msg.set_public_key(hash);
                          tx.send(msg.write_to_bytes().unwrap()).await;
                      }
                              //             //被动端转发延时请求给主动方
                      Some(message::Union::test_delay(hash)) => {
-                         allow_info!(format!("passive test_delay {:?}", &hash));
+                         allow_info!(format!("21118 passive test_delay {:?}", &hash));
                          let mut msg = Message::new();
                          msg.set_test_delay(hash);
                          tx.send(msg.write_to_bytes().unwrap()).await;
                      }
                      Some(message::Union::video_frame(hash)) => {
-                         allow_info!(format!("passive  {:?}", &hash));
+                         allow_info!(format!("21118 passive  {:?}", &hash));
                          let mut msg = Message::new();
                          msg.set_video_frame(hash);
                          tx.send(msg.write_to_bytes().unwrap()).await;
                      }
                          Some(message::Union::login_request(hash)) => {
-                             allow_info!(format!("passive login_request {:?}", &hash));
+                             allow_info!(format!("21118 passive login_request {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_login_request(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
@@ -813,37 +820,37 @@ async fn tcp_passive_21118_read_messages(
                          }
                          //完成
                          Some(message::Union::hash(hash)) => {
-                             allow_info!(format!("passive hash {:?}", &hash));
+                             allow_info!(format!("21118 passive hash {:?}", &hash));
                              let mut msg = Message::new();
                                 msg.set_hash(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::mouse_event(hash)) => {
-                             allow_info!(format!("passive mouse_event {:?}", &hash));
+                             allow_info!(format!("21118 passive mouse_event {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_mouse_event(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::audio_frame(hash)) => {
-                             allow_info!(format!("passive audio_frame {:?}", &hash));
+                             allow_info!(format!("21118 passive audio_frame {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_audio_frame(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::cursor_data(hash)) => {
-                             allow_info!(format!("passive cursor_data {:?}", &hash));
+                             allow_info!(format!("21118 passive cursor_data {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_cursor_data(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::cursor_position(hash)) => {
-                             allow_info!(format!("passive cursor_position {:?}", &hash));
+                             allow_info!(format!("21118 passive cursor_position {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_cursor_position(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::cursor_id(hash)) => {
-                         allow_info!(format!("passive cursor_id {:?}", &hash));
+                         allow_info!(format!("21118 passive cursor_id {:?}", &hash));
                          // tx.send(hash.write_to_bytes().unwrap()).await;
                          let mut msg = Message::new();
                          msg.set_cursor_id(hash);
@@ -851,31 +858,31 @@ async fn tcp_passive_21118_read_messages(
 
                          }
                          Some(message::Union::key_event(hash)) => {
-                             allow_info!(format!("passive key_event {:?}", &hash));
+                             allow_info!(format!("21118 passive key_event {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_key_event(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::clipboard(hash)) => {
-                             allow_info!(format!("passive clipboard {:?}", &hash));
+                             allow_info!(format!("21118 passive clipboard {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_clipboard(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::file_action(hash)) => {
-                             allow_info!(format!("passive file_action {:?}", &hash));
+                             allow_info!(format!("21118 passive file_action {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_file_action(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::file_response(hash)) => {
-                             allow_info!(format!("passive file_response {:?}", &hash));
+                             allow_info!(format!("21118 passive file_response {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_file_response(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::misc(hash)) => {
-                             allow_info!(format!("passive misc {:?}", &hash));
+                             allow_info!(format!("21118 passive misc {:?}", &hash));
                              let mut msg = Message::new();
                              msg.set_misc(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
