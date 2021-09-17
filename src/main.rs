@@ -570,13 +570,13 @@ async fn tcp_active_21119_read_messages(
                         }
 
                         Some(message::Union::mouse_event(hash)) => {
-                            allow_info!(format!("active mouse_event {:?}", &hash));
+
                             let mut msg = Message::new();
                             msg.set_mouse_event(hash);
                             tx.send(msg.write_to_bytes().unwrap()).await?;
                         }
                         Some(message::Union::audio_frame(hash)) => {
-                            allow_info!(format!("active audio_frame {:?}", &hash));
+
                             let mut msg = Message::new();
                             msg.set_audio_frame(hash);
                             tx.send(msg.write_to_bytes().unwrap()).await?;
@@ -587,7 +587,7 @@ async fn tcp_active_21119_read_messages(
                             tx.send(msg.write_to_bytes().unwrap()).await?;
                         }
                         Some(message::Union::cursor_position(hash)) => {
-                            allow_info!(format!("active cursor_position {:?}", &hash));
+
                             let mut msg = Message::new();
                             msg.set_cursor_position(hash);
                             tx.send(msg.write_to_bytes().unwrap()).await?;
@@ -600,7 +600,7 @@ async fn tcp_active_21119_read_messages(
                         }
 
                         Some(message::Union::key_event(hash)) => {
-                            allow_info!(format!("active key_event {:?}", &hash));
+
                             let mut msg = Message::new();
                             msg.set_key_event(hash);
                             tx.send(msg.write_to_bytes().unwrap()).await?;
@@ -611,19 +611,19 @@ async fn tcp_active_21119_read_messages(
                             tx.send(msg.write_to_bytes().unwrap()).await?;
                         }
                         Some(message::Union::file_action(hash)) => {
-                            allow_info!(format!("active file_action {:?}", &hash));
+
                             let mut msg = Message::new();
                             msg.set_file_action(hash);
                             tx.send(msg.write_to_bytes().unwrap()).await?;
                         }
                         Some(message::Union::file_response(hash)) => {
-                            allow_info!(format!("active file_response {:?}", &hash));
+
                             let mut msg = Message::new();
                             msg.set_file_response(hash);
                             tx.send(msg.write_to_bytes().unwrap()).await?;
                         }
                         Some(message::Union::misc(hash)) => {
-                            allow_info!(format!("active misc {:?}", &hash));
+
                             let mut msg = Message::new();
                             msg.set_misc(hash);
                             tx.send(msg.write_to_bytes().unwrap()).await?;
