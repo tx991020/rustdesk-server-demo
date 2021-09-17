@@ -1,3 +1,5 @@
+#![feature(map_first_last)]
+
 use crate::tokio::select;
 use crate::tokio::signal::ctrl_c;
 use crate::tokio::time::interval;
@@ -6,8 +8,7 @@ use hbb_common::message_proto::{message, Message};
 use hbb_common::tokio::sync::{mpsc, RwLock};
 use hbb_common::{
     allow_err, allow_info,
-    anyhow::anyhow,
-    anyhow::Result,
+    anyhow::{anyhow, Context, Result},
     bytes::BytesMut,
     message_proto::*,
     protobuf,
@@ -20,6 +21,7 @@ use hbb_common::{
     AddrMangle,
 };
 use hbb_common::{log, ResultType};
+use std::collections::BTreeSet;
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
@@ -36,6 +38,7 @@ use hbb_common::message_proto::message::Union;
 use hbb_common::sodiumoxide::crypto::secretbox;
 use hbb_common::sodiumoxide::crypto::stream::stream;
 use hbb_common::tokio::net::{TcpStream, UdpSocket};
+use hbb_common::tokio::sync::mpsc::UnboundedSender;
 use hbb_common::tokio::task::JoinHandle;
 use hbb_common::tokio_util::codec::{BytesCodec, Framed};
 use hbb_common::tokio_util::udp::UdpFramed;
@@ -45,8 +48,6 @@ use std::collections::HashMap;
 use std::io::Error;
 use std::sync::Arc;
 use tracing_subscriber;
-use hbb_common::tokio::sync::mpsc::UnboundedSender;
-
 
 /// Shorthand for the transmit half of the message channel.
 type Tx = Sender<Vec<u8>>;
@@ -55,63 +56,39 @@ type Tx = Sender<Vec<u8>>;
 type Rx = Receiver<Vec<u8>>;
 
 struct Shared {
-    senders: HashMap<SocketAddr, Tx>,
-    receivers: HashMap<SocketAddr, Rx>,
-    addr:SocketAddr,
-    remote_addr:SocketAddr,
-}
-
-
-struct Peer {
-    /// The TCP socket wrapped with the `Lines` codec, defined below.
-    ///
-    /// This handles sending and receiving data on the socket. When using
-    /// `Lines`, we can work at the line level instead of having to manage the
-    /// raw byte operations.
-    lines: FramedStream,
-
-    //
-    /// Receive half of the message channel.
-    ///
-    /// This is used to receive messages from peers. When a message is received
-    /// off of this `Rx`, it will be written to the socket.
-    rx: Rx,
+    receivers_18: HashMap<String, Rx>,
+    receivers_19: HashMap<String, Rx>,
+    kv: HashMap<String, String>,
+    vk: HashMap<String, String>,
 }
 
 impl Shared {
     /// Create a new, empty, instance of `Shared`.
     fn new() -> Self {
         Shared {
-            senders: HashMap::new(),
-            receivers: HashMap::new(),
-            addr: to_socket_addr("").unwrap(),
-            remote_addr: to_socket_addr("").unwrap(),
+            receivers_18: HashMap::new(),
+            receivers_19: HashMap::new(),
+
+            kv: HashMap::new(),
+            vk: HashMap::new(),
         }
     }
-
-
 }
-
-
-
 
 #[derive(Debug, Clone)]
 struct client {
     //心跳
     timestamp: u64,
     local_addr: std::net::SocketAddr,
-
 }
-
-
 
 #[derive(Debug, Clone)]
 enum Event {
     /// 打洞第一步
-    First(String,SocketAddr),
+    First(String, SocketAddr),
 
     ///打洞第二步
-    Second(String,SocketAddr),
+    Second(String, SocketAddr),
     UnNone,
 }
 
@@ -125,11 +102,9 @@ pub fn get_time() -> i64 {
         .unwrap_or(0) as _
 }
 
-
 //1处理配对关系
 //2 转发消息 ws， proxy
 //3离开是,删除关系
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -163,27 +138,49 @@ async fn main() -> Result<()> {
     tokio::spawn(tcp_passive_21117(
         "0.0.0.0:21117",
         id_map.clone(),
+        ip_sender.clone(),
     ));
     //完成
-    tokio::spawn(tcp_active_21116("0.0.0.0:21116", id_map, ip_sender.clone()));
-    //一对一的websocket
-    tokio::spawn(tcp_passive_21118(
-        state.clone()
-        ,
-        "0.0.0.0:21118",
+    tokio::spawn(tcp_active_21116(
+        "0.0.0.0:21116",
+        id_map,
+        ip_sender.clone(),
+        state.clone(),
     ));
-    // tokio::spawn(tcp_active_21119(
-    //     state.clone(),
-    //     "0.0.0.0:21119",
-    //     tx_from_active,
-    //     rx_from_passive.clone(),
-    // ));
+    //一对一的websocket
+    tokio::spawn(tcp_passive_21118(state.clone(), "0.0.0.0:21118"));
+    tokio::spawn(tcp_active_21119(state.clone(), "0.0.0.0:21119"));
 
     ctrl_c().await?;
     Ok(())
 }
 
 async fn tcp_active_21116(
+    addr: &str,
+    id_map: Arc<Mutex<HashMap<String, client>>>,
+    sender: Sender<Event>,
+    state: Arc<Mutex<Shared>>,
+) -> Result<()> {
+    let mut listener_active = new_listener(addr, false).await?;
+    loop {
+        // Accept the next connection.
+
+        let (stream, addr1) = listener_active.accept().await?;
+
+        // Read messages from the client and ignore I/O errors when the client quits.
+        tokio::spawn(tcp_21116_read_rendezvous_message(
+            stream,
+            id_map.clone(),
+            sender.clone(),
+            addr1,
+            state.clone(),
+        ));
+    }
+
+    Ok(())
+}
+
+async fn tcp_passive_21117(
     addr: &str,
     id_map: Arc<Mutex<HashMap<String, client>>>,
     sender: Sender<Event>,
@@ -195,24 +192,12 @@ async fn tcp_active_21116(
         let (stream, addr1) = listener_active.accept().await?;
 
         // Read messages from the client and ignore I/O errors when the client quits.
-        tokio::spawn(tcp_21116_read_rendezvous_message(stream, id_map.clone(), sender.clone(),addr1));
-    }
-
-    Ok(())
-}
-
-async fn tcp_passive_21117(
-    addr: &str,
-    id_map: Arc<Mutex<HashMap<String, client>>>,
-) -> Result<()> {
-    let mut listener_active = new_listener(addr, false).await?;
-    loop {
-        // Accept the next connection.
-
-        let (stream, addr1) = listener_active.accept().await?;
-
-        // Read messages from the client and ignore I/O errors when the client quits.
-        tokio::spawn(tcp_21117_read_rendezvous_message(stream, id_map.clone(),addr1));
+        tokio::spawn(tcp_21117_read_rendezvous_message(
+            stream,
+            id_map.clone(),
+            sender.clone(),
+            addr1,
+        ));
     }
 
     Ok(())
@@ -222,13 +207,24 @@ async fn tcp_passive_21117(
 async fn tcp_21117_read_rendezvous_message(
     mut stream1: TcpStream,
     id_map: Arc<Mutex<HashMap<String, client>>>,
-    addr:SocketAddr,
+    sender: Sender<Event>,
+    addr: SocketAddr,
 ) -> Result<()> {
     let mut stream = FramedStream::from(stream1);
 
     if let Some(Ok(bytes)) = stream.next().await {
         if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
             match msg_in.union {
+                Some(rendezvous_message::Union::local_addr(ph)) => {
+                    info!("{}", "---------local_addr 21117");
+                    let remote_desk_id = ph.id;
+                    let mut id_map = id_map.lock().await;
+                    if let Some(client) = id_map.get(&remote_desk_id) {
+                        sender
+                            .send(Event::Second(remote_desk_id, client.local_addr))
+                            .await;
+                    }
+                }
                 Some(rendezvous_message::Union::relay_response(ph)) => {
                     allow_info!(format!("{:?}", &ph));
                     let mut msg = RendezvousMessage::new();
@@ -252,7 +248,6 @@ async fn tcp_21117_read_rendezvous_message(
                 }
 
                 Some(rendezvous_message::Union::request_relay(ph)) => {
-                    allow_info!(format!("{:?}", &ph.id));
                     let mut msg = RendezvousMessage::new();
                     msg.set_relay_response(RelayResponse {
                         socket_addr: vec![],
@@ -277,28 +272,25 @@ async fn tcp_21117_read_rendezvous_message(
     Ok(())
 }
 
-async fn tcp_passive_21118(
-    state: Arc<Mutex<Shared>>,
-    addr: &str,
-) -> Result<()> {
+async fn tcp_passive_21118(state: Arc<Mutex<Shared>>, addr: &str) -> Result<()> {
     let mut listener_active = new_listener(addr, false).await?;
 
     loop {
         let (stream, addr1) = listener_active.accept().await?;
 
-
         // Read messages from the client and ignore I/O errors when the client quits.
 
-        tokio::spawn(tcp_passive_21118_read_messages(stream, addr1, state.clone()));
+        tokio::spawn(tcp_passive_21118_read_messages(
+            stream,
+            addr1,
+            state.clone(),
+        ));
     }
 
     Ok(())
 }
 
-async fn tcp_active_21119(
-    state: Arc<Mutex<Shared>>,
-    addr: &str,
-) -> Result<()> {
+async fn tcp_active_21119(state: Arc<Mutex<Shared>>, addr: &str) -> Result<()> {
     let mut listener_active = new_listener(addr, false).await?;
     loop {
         let (stream, addr1) = listener_active.accept().await?;
@@ -310,28 +302,19 @@ async fn tcp_active_21119(
     Ok(())
 }
 
-
 //
 async fn tcp_21116_read_rendezvous_message(
     mut stream: TcpStream,
     id_map: Arc<Mutex<HashMap<String, client>>>,
     sender: Sender<Event>,
-    addr:SocketAddr,
+    addr: SocketAddr,
+    state: Arc<Mutex<Shared>>,
 ) -> Result<()> {
     let mut stream = FramedStream::from(stream);
 
     if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
         if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
             match msg_in.union {
-                //主动发打洞第二步
-                Some(rendezvous_message::Union::local_addr(ph)) => {
-                    allow_info!(format!("{:?}", &ph));
-                    let remote_desk_id = ph.id;
-                    let mut id_map = id_map.lock().await;
-                    if let Some(client) = id_map.get(&remote_desk_id) {
-                        sender.send(Event::Second(remote_desk_id,client.local_addr)).await;
-                    }
-                }
                 Some(rendezvous_message::Union::relay_response(ph)) => {
                     allow_info!(format!("{:?}", &ph));
                     let mut msg_out = RendezvousMessage::new();
@@ -354,11 +337,10 @@ async fn tcp_21116_read_rendezvous_message(
                 }
                 //主动发打洞第一步
                 Some(rendezvous_message::Union::punch_hole_request(ph)) => {
-                    allow_info!(format!("{:?}", &ph));
-                    let addr1 = stream.get_ref().local_addr()?;
+                    info!("{}", "---------punch_hole_request 21116");
                     let mut msg_out = RendezvousMessage::new();
                     msg_out.set_punch_hole_response(PunchHoleResponse {
-                        socket_addr: AddrMangle::encode(addr1),
+                        socket_addr: AddrMangle::encode(addr),
                         pk: vec![] as Vec<u8>,
                         relay_server: "47.88.2.164:21116".to_string(),
                         union: std::option::Option::Some(punch_hole_response::Union::is_local(
@@ -370,7 +352,17 @@ async fn tcp_21116_read_rendezvous_message(
                         let remote_desk_id = ph.id;
                         let mut id_map = id_map.lock().await;
                         if let Some(client) = id_map.get(&remote_desk_id) {
-                            sender.send(Event::First(remote_desk_id,client.local_addr)).await;
+                            //记录两人ip匹配关系
+                            let mut guard = state.lock().await;
+                            let k = addr.ip().to_string();
+                            let v = client.local_addr.ip().to_string();
+                            info!("TTTTTTTTTTTTTTT  {:?} v {:?}", &k, &v);
+                            guard.kv.insert(k.clone(), v.clone());
+                            guard.kv.insert(v, k);
+
+                            sender
+                                .send(Event::First(remote_desk_id, client.local_addr))
+                                .await;
                         }
                     }
                 }
@@ -395,33 +387,48 @@ async fn tcp_21116_read_rendezvous_message(
         } else {
             allow_info!(format!("tcp 21116 not match {:?}", &bytes));
         }
-    }else {
-
-    }
+    } else {}
     Ok(())
 }
 
+async fn fx1(tx1: Sender<Vec<u8>>,r: Receiver<Vec<u8>>) {
+    while let (Ok(t)) = r.recv().await {
+        tx1.send(t).await;
+    }
+}
+
+async fn fx2(tx1: Sender<Vec<u8>>,r: Receiver<Vec<u8>>) {
+    while let (Ok(t)) = r.recv().await {
+        tx1.send(t).await;
+    }
+}
 
 async fn tcp_active_21119_read_messages(
     mut stream1: TcpStream,
     addr: SocketAddr,
     state: Arc<Mutex<Shared>>,
 ) -> Result<()> {
+    println!("21119 AAAAAAAAAAAAAA{:?}", &addr);
     let mut stream = FramedStream::from(stream1);
     let (tx, mut rx) = unbounded::<Vec<u8>>();
+    let (tx1, mut rx1) = unbounded::<Vec<u8>>();
 
     let mut s = state.lock().await;
-    s.senders.insert(addr, tx.clone());
-    s.receivers.insert(addr, rx.clone());
-    s.addr =addr;
-
-    let mut rx1: Rx;
-    if let Some(recv) = s.receivers.get(&to_socket_addr("").unwrap()) {
-        rx1 = recv.clone();
-    }else {
-        return Err(anyhow!("对方未建立连接"));
+    s.receivers_18.insert(addr.ip().to_string(), rx.clone());
+    let ip = addr.ip().to_string();
+    println!("21119 1111111111{:?},{:#?},{:#?}", &ip, s.kv, s.vk);
+    let res = s.vk.get(&ip).context("not get remote ip");
+    if res.is_err() {
+        println!("{}", "21111111119 5555555")
     }
+    let host = res?;
+    println!("21119 22222222222{:?}", &host);
 
+
+    if let Some(r) = s.receivers_19.get(host) {
+       tokio::spawn(fx1(tx1.clone(),r.clone()));
+    };
+    println!("{}", "21119 333333333333");
     loop {
         select! {
 
@@ -509,7 +516,8 @@ async fn tcp_active_21119_read_messages(
 
 
 
-              Some(Ok(bytes)) =  stream.next_timeout(3000) => {
+              res =  stream.next_timeout(3000) => {
+                if let Some(Ok(bytes)) =res {
                 if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                     match msg_in.union {
                         Some(message::Union::signed_id(hash)) => {
@@ -612,43 +620,49 @@ async fn tcp_active_21119_read_messages(
                         }
                     }
                 }
-    }
+                    }else {
+                    break
+                }
+            }
+            else => {
+            info!("{}","error ---------- 211119 ");
+
+            },
         }
     }
 
-
     Ok(())
 }
-
 
 async fn tcp_passive_21118_read_messages(
     mut stream1: TcpStream,
     addr: SocketAddr,
     state: Arc<Mutex<Shared>>,
 ) -> Result<()> {
+    println!("21118 BBBBBBBBBBBBBBBBB{:?}", &addr);
     let mut stream = FramedStream::from(stream1);
     // Create a channel for this peer //一个peer一个channel
     // let mut peer = Peer::new(state.clone(), stream).await?;
     let (tx, mut rx) = unbounded::<Vec<u8>>();
-
-
+    let (tx1, mut rx1) = unbounded::<Vec<u8>>();
     let mut s = state.lock().await;
-    s.addr=addr;
-    s.senders.insert(addr, tx.clone());
-    s.receivers.insert(addr, rx.clone());
 
-    let mut rx1: Rx;
-    if let Some(recv) = s.receivers.get(&to_socket_addr("").unwrap()) {
-        rx1 = recv.clone();
-    }else {
-        return Ok(());
+    s.receivers_19.insert(addr.ip().to_string(), rx.clone());
+
+    let ip = addr.ip().to_string();
+    println!("21118 1111111111{:?},{:#?},{:#?}", &ip, s.kv, s.vk);
+    let host = s.kv.get(&ip).context("not get remote ip")?;
+    println!("21118 22222222{:?}", &host);
+
+    if let Some(r) = s.receivers_19.get(host) {
+        tokio::spawn(fx2(tx1.clone(),r.clone()));
     }
 
+    println!("{}", "21118 333333333");
 
 
     loop {
         select! {
-            // A message was received from a peer. Send it to the current user.
                    Ok(bytes) = rx1.recv() => {
                          if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                             match msg_in.union {
@@ -657,71 +671,71 @@ async fn tcp_passive_21118_read_messages(
                                     allow_info!(format!("21118 Receiver login_request {:?}", &hash));
                                     let mut msg = Message::new();
                                     msg.set_login_request(hash);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 Some(message::Union::test_delay(hash)) => {
                                 allow_info!(format!("21118 Receiver test_delay {:?}", &hash));
                                 let mut msg = Message::new();
                                 msg.set_test_delay(hash);
-                                stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 Some(message::Union::video_frame(hash)) => {
-
+                                    allow_info!(format!("21118 Receiver video_frame {:?}", &hash));
                                     let mut msg = Message::new();
                                     msg.set_video_frame(hash);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 Some(message::Union::login_response(hash)) => {
                                     allow_info!(format!("21118 Receiver login_response {:?}", &hash));
                                     let mut msg = Message::new();
                                     msg.set_login_response(hash);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
 
                                 Some(message::Union::cursor_data(cd)) => {
-
+                                    allow_info!(format!("21118 Receiver cursor_data{:?}", &cd));
                                     let mut msg = Message::new();
                                     msg.set_cursor_data(cd);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 Some(message::Union::cursor_id(id)) => {
                                     allow_info!(format!("21118 Receiver cursor_id{:?}", &id));
                                     let mut msg = Message::new();
                                     msg.set_cursor_id(id);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                     // stream.send_raw(id.write_to_bytes().unwrap()).await;
                                 }
                                 Some(message::Union::cursor_position(cp)) => {
                                     allow_info!(format!("21118 Receiver cursor_position{:?}", &cp));
                                     let mut msg = Message::new();
                                     msg.set_cursor_position(cp);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 //完成
                                 Some(message::Union::clipboard(cb)) => {
-
+                                    allow_info!(format!("21118 Receiver clipboard{:?}", &cb));
                                     let mut msg = Message::new();
                                     msg.set_clipboard(cb);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 //暂存
                                 Some(message::Union::file_response(fr)) => {
                                     allow_info!(format!("21118 Receiver file_response{:?}", &fr));
                                     let mut msg = Message::new();
                                     msg.set_file_response(fr);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 Some(message::Union::misc(misc)) => {
                                     allow_info!(format!("21118 Receiver misc{:?}", &misc));
                                     let mut msg = Message::new();
                                     msg.set_misc(misc);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 Some(message::Union::audio_frame(frame)) => {
                                     allow_info!(format!("21118 Receiver audio_frame{:?}", &frame));
                                     let mut msg = Message::new();
                                     msg.set_audio_frame(frame);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
 
 
@@ -729,20 +743,20 @@ async fn tcp_passive_21118_read_messages(
                                     allow_info!(format!("21118 Receiver file_action{:?}", &fa));
                                     let mut msg = Message::new();
                                     msg.set_file_action(fa);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 //完成
                                 Some(message::Union::key_event(mut me)) =>{
                                     let mut msg = Message::new();
                                     msg.set_key_event(me);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 Some(message::Union::mouse_event(frame)) => {
                                     allow_info!(format!("21118 Receiver audio_frame{:?}", &frame));
 
                                     let mut msg = Message::new();
                                     msg.set_mouse_event(frame);
-                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                                    stream.send_raw(msg.write_to_bytes().unwrap()).await;
                                 }
                                 _ => {
                                     allow_info!(format!("tcp_active_21118  read_messages {:?}", &msg_in));
@@ -758,107 +772,107 @@ async fn tcp_passive_21118_read_messages(
                                 allow_info!(format!("passive signed_id {:?}", &hash));
                                 let mut msg = Message::new();
                                 msg.set_signed_id(hash);
-                                tx.send(msg.write_to_bytes().unwrap()).await?;
+                                tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                 Some(message::Union::public_key(hash)) =>{
                                       allow_info!(format!("passive public_key {:?}", &hash));
                                     let mut msg = Message::new();
                                     msg.set_public_key(hash);
-                                    tx.send(msg.write_to_bytes().unwrap()).await?;
+                                    tx.send(msg.write_to_bytes().unwrap()).await;
                                 }
                                         //             //被动端转发延时请求给主动方
                                 Some(message::Union::test_delay(hash)) => {
                                     allow_info!(format!("passive test_delay {:?}", &hash));
                                     let mut msg = Message::new();
                                     msg.set_test_delay(hash);
-                                    tx.send(msg.write_to_bytes().unwrap()).await?;
+                                    tx.send(msg.write_to_bytes().unwrap()).await;
                                 }
                                 Some(message::Union::video_frame(hash)) => {
-
+                                    allow_info!(format!("passive  {:?}", &hash));
                                     let mut msg = Message::new();
                                     msg.set_video_frame(hash);
-                                    tx.send(msg.write_to_bytes().unwrap()).await?;
+                                    tx.send(msg.write_to_bytes().unwrap()).await;
                                 }
                                     Some(message::Union::login_request(hash)) => {
                                         allow_info!(format!("passive login_request {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_login_request(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::login_response(hash)) => {
                                         allow_info!(format!("++++++++++++++++jjjjjj-1111  21118 login_response {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_login_response(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     //完成
                                     Some(message::Union::hash(hash)) => {
                                         allow_info!(format!("passive hash {:?}", &hash));
                                         let mut msg = Message::new();
                                            msg.set_hash(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::mouse_event(hash)) => {
                                         allow_info!(format!("passive mouse_event {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_mouse_event(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::audio_frame(hash)) => {
                                         allow_info!(format!("passive audio_frame {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_audio_frame(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::cursor_data(hash)) => {
-
+                                        allow_info!(format!("passive cursor_data {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_cursor_data(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::cursor_position(hash)) => {
                                         allow_info!(format!("passive cursor_position {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_cursor_position(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::cursor_id(hash)) => {
                                     allow_info!(format!("passive cursor_id {:?}", &hash));
-                                    // tx_from_passive.send(hash.write_to_bytes().unwrap()).await;
+                                    // tx.send(hash.write_to_bytes().unwrap()).await;
                                     let mut msg = Message::new();
                                     msg.set_cursor_id(hash);
-                                    tx.send(msg.write_to_bytes().unwrap()).await?;
+                                    tx.send(msg.write_to_bytes().unwrap()).await;
 
                                     }
                                     Some(message::Union::key_event(hash)) => {
                                         allow_info!(format!("passive key_event {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_key_event(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::clipboard(hash)) => {
-
+                                        allow_info!(format!("passive clipboard {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_clipboard(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::file_action(hash)) => {
                                         allow_info!(format!("passive file_action {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_file_action(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::file_response(hash)) => {
                                         allow_info!(format!("passive file_response {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_file_response(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                     Some(message::Union::misc(hash)) => {
                                         allow_info!(format!("passive misc {:?}", &hash));
                                         let mut msg = Message::new();
                                         msg.set_misc(hash);
-                                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                                        tx.send(msg.write_to_bytes().unwrap()).await;
                                     }
                                 //完成
                                  _ => {
@@ -870,8 +884,9 @@ async fn tcp_passive_21118_read_messages(
 
                     }
     }
-}
 
+    Ok(())
+}
 
 async fn udp_21116(
     id_map: Arc<Mutex<HashMap<String, client>>>,
@@ -885,17 +900,14 @@ async fn udp_21116(
 
     let receiver1 = receiver.clone();
 
-
     tokio::spawn(async move {
         while let Ok(eve) = receiver1.recv().await {
             match eve {
-                Event::First(id,a) => {
+                Event::First(id, a) => {
                     allow_info!(format!("{}", "first"));
-                    let mut id_map = id_map.lock().await;
-
                     udp_send_fetch_local_addr(&mut socket1, "".to_string(), a).await;
                 }
-                Event::Second(id,b) => {
+                Event::Second(id, b) => {
                     allow_info!(format!("{}", "second"));
 
                     udp_send_request_relay(&mut socket1, "".to_string(), b).await;
@@ -990,7 +1002,6 @@ async fn udp_send_request_relay(
     Ok(())
 }
 
-
 //简历对应关系表
 async fn handle_udp(
     socket: &mut UdpFramed<BytesCodec, Arc<UdpSocket>>,
@@ -1022,7 +1033,6 @@ async fn handle_udp(
                     client {
                         timestamp: get_time() as u64,
                         local_addr: addr,
-
                     },
                 );
                 socket
