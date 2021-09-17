@@ -220,7 +220,6 @@ async fn tcp_21117_read_rendezvous_message(
                     let remote_desk_id = ph.id;
                     let mut id_map = id_map.lock().await;
                     if let Some(client) = id_map.get(&remote_desk_id) {
-
                         sender
                             .send(Event::Second(remote_desk_id, client.local_addr))
                             .await;
@@ -392,8 +391,7 @@ async fn tcp_21116_read_rendezvous_message(
         } else {
             allow_info!(format!("tcp 21116 not match {:?}", &bytes));
         }
-    } else {
-    }
+    } else {}
     Ok(())
 }
 
@@ -436,10 +434,10 @@ async fn tcp_active_21119_read_messages(
         if let Some(r) = s.receivers_19.get(host) {
             re = Some(r.clone());
             drop(s);
-
         };
     }
-    if re.is_some(){
+    if re.is_some() {
+        println!("{}", "MMMMMMMMMMMMMMMMMMMM  message from 21118");
         tokio::spawn(fx1(tx1.clone(), re.unwrap()));
     }
     println!("{}", "21119 333333333333");
@@ -492,7 +490,7 @@ async fn tcp_active_21119_read_messages(
 
                                }
                                Some(message::Union::cursor_position(cp)) => {
-                                   allow_info!(format!("21119 Receiver cursor_position{:?}", &cp));
+
                                    let mut msg = Message::new();
                                    msg.set_cursor_position(cp);
                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
@@ -504,19 +502,19 @@ async fn tcp_active_21119_read_messages(
                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
                                }
                                Some(message::Union::file_response(fr)) => {
-                                   allow_info!(format!("21119 Receiver file_response{:?}", &fr));
+
                                    let mut msg = Message::new();
                                    msg.set_file_response(fr);
                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
                                }
                                Some(message::Union::misc(misc)) => {
-                                   allow_info!(format!("21119 Receiver misc{:?}", &misc));
+
                                    let mut msg = Message::new();
                                    msg.set_misc(misc);
                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
                                }
                                Some(message::Union::audio_frame(frame)) => {
-                                   allow_info!(format!("21119 Receiver audio_frame{:?}", &frame));
+
                                    let mut msg = Message::new();
                                    msg.set_audio_frame(frame);
                                    stream.send_raw(msg.write_to_bytes().unwrap()).await?;
@@ -636,6 +634,7 @@ async fn tcp_active_21119_read_messages(
                     }
                 }
                     }else {
+                    info!("tcp 21119连接超时");
                     break
                 }
             }
@@ -679,10 +678,10 @@ async fn tcp_passive_21118_read_messages(
         if let Some(r) = s.receivers_18.get(host) {
             re = Some(r.clone());
             drop(s);
-
         }
     }
-    if re.is_some(){
+    if re.is_some() {
+        println!("{}", "HHHHHHHHHHHHHH  message from 21119");
         tokio::spawn(fx2(tx1.clone(), re.unwrap()));
     }
 
@@ -709,7 +708,7 @@ async fn tcp_passive_21118_read_messages(
                      stream.send_raw(msg.write_to_bytes().unwrap()).await;
                      }
                      Some(message::Union::video_frame(hash)) => {
-                         allow_info!(format!("21118 Receiver video_frame {:?}", &hash));
+
                          let mut msg = Message::new();
                          msg.set_video_frame(hash);
                          stream.send_raw(msg.write_to_bytes().unwrap()).await;
@@ -722,7 +721,7 @@ async fn tcp_passive_21118_read_messages(
                      }
 
                      Some(message::Union::cursor_data(cd)) => {
-                         allow_info!(format!("21118 Receiver cursor_data{:?}", &cd));
+
                          let mut msg = Message::new();
                          msg.set_cursor_data(cd);
                          stream.send_raw(msg.write_to_bytes().unwrap()).await;
@@ -735,33 +734,33 @@ async fn tcp_passive_21118_read_messages(
                          // stream.send_raw(id.write_to_bytes().unwrap()).await;
                      }
                      Some(message::Union::cursor_position(cp)) => {
-                         allow_info!(format!("21118 Receiver cursor_position{:?}", &cp));
+
                          let mut msg = Message::new();
                          msg.set_cursor_position(cp);
                          stream.send_raw(msg.write_to_bytes().unwrap()).await;
                      }
                      //完成
                      Some(message::Union::clipboard(cb)) => {
-                         allow_info!(format!("21118 Receiver clipboard{:?}", &cb));
+
                          let mut msg = Message::new();
                          msg.set_clipboard(cb);
                          stream.send_raw(msg.write_to_bytes().unwrap()).await;
                      }
                      //暂存
                      Some(message::Union::file_response(fr)) => {
-                         allow_info!(format!("21118 Receiver file_response{:?}", &fr));
+
                          let mut msg = Message::new();
                          msg.set_file_response(fr);
                          stream.send_raw(msg.write_to_bytes().unwrap()).await;
                      }
                      Some(message::Union::misc(misc)) => {
-                         allow_info!(format!("21118 Receiver misc{:?}", &misc));
+
                          let mut msg = Message::new();
                          msg.set_misc(misc);
                          stream.send_raw(msg.write_to_bytes().unwrap()).await;
                      }
                      Some(message::Union::audio_frame(frame)) => {
-                         allow_info!(format!("21118 Receiver audio_frame{:?}", &frame));
+
                          let mut msg = Message::new();
                          msg.set_audio_frame(frame);
                          stream.send_raw(msg.write_to_bytes().unwrap()).await;
@@ -769,7 +768,7 @@ async fn tcp_passive_21118_read_messages(
 
 
                      Some(message::Union::file_action(fa)) =>{
-                         allow_info!(format!("21118 Receiver file_action{:?}", &fa));
+
                          let mut msg = Message::new();
                          msg.set_file_action(fa);
                          stream.send_raw(msg.write_to_bytes().unwrap()).await;
@@ -781,7 +780,7 @@ async fn tcp_passive_21118_read_messages(
                          stream.send_raw(msg.write_to_bytes().unwrap()).await;
                      }
                      Some(message::Union::mouse_event(frame)) => {
-                         allow_info!(format!("21118 Receiver audio_frame{:?}", &frame));
+
 
                          let mut msg = Message::new();
                          msg.set_mouse_event(frame);
@@ -794,7 +793,8 @@ async fn tcp_passive_21118_read_messages(
                      }
                  }
              }
-         Some(Ok(bytes)) =  stream.next_timeout(3000) =>  {
+         res =  stream.next_timeout(3000) =>  {
+                if let Some(Ok(bytes)) =res{
              if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                  match msg_in.union{
                       Some(message::Union::signed_id(hash)) => {
@@ -817,7 +817,7 @@ async fn tcp_passive_21118_read_messages(
                          tx.send(msg.write_to_bytes().unwrap()).await;
                      }
                      Some(message::Union::video_frame(hash)) => {
-                         allow_info!(format!("21118 passive  {:?}", &hash));
+
                          let mut msg = Message::new();
                          msg.set_video_frame(hash);
                          tx.send(msg.write_to_bytes().unwrap()).await;
@@ -842,25 +842,25 @@ async fn tcp_passive_21118_read_messages(
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::mouse_event(hash)) => {
-                             allow_info!(format!("21118 passive mouse_event {:?}", &hash));
+
                              let mut msg = Message::new();
                              msg.set_mouse_event(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::audio_frame(hash)) => {
-                             allow_info!(format!("21118 passive audio_frame {:?}", &hash));
+
                              let mut msg = Message::new();
                              msg.set_audio_frame(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::cursor_data(hash)) => {
-                             allow_info!(format!("21118 passive cursor_data {:?}", &hash));
+
                              let mut msg = Message::new();
                              msg.set_cursor_data(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::cursor_position(hash)) => {
-                             allow_info!(format!("21118 passive cursor_position {:?}", &hash));
+
                              let mut msg = Message::new();
                              msg.set_cursor_position(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
@@ -874,31 +874,31 @@ async fn tcp_passive_21118_read_messages(
 
                          }
                          Some(message::Union::key_event(hash)) => {
-                             allow_info!(format!("21118 passive key_event {:?}", &hash));
+
                              let mut msg = Message::new();
                              msg.set_key_event(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::clipboard(hash)) => {
-                             allow_info!(format!("21118 passive clipboard {:?}", &hash));
+
                              let mut msg = Message::new();
                              msg.set_clipboard(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::file_action(hash)) => {
-                             allow_info!(format!("21118 passive file_action {:?}", &hash));
+
                              let mut msg = Message::new();
                              msg.set_file_action(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::file_response(hash)) => {
-                             allow_info!(format!("21118 passive file_response {:?}", &hash));
+
                              let mut msg = Message::new();
                              msg.set_file_response(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
                          }
                          Some(message::Union::misc(hash)) => {
-                             allow_info!(format!("21118 passive misc {:?}", &hash));
+
                              let mut msg = Message::new();
                              msg.set_misc(hash);
                              tx.send(msg.write_to_bytes().unwrap()).await;
@@ -907,8 +907,11 @@ async fn tcp_passive_21118_read_messages(
                       _ => {
                      allow_info!(format!("tcp_passive_21118  read_messages {:?}", &msg_in));
                  }
-                 }
+                    }
              }
+                }else {
+                    info!("tcp21118连接超时")
+                }
          }
 
          }
