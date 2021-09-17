@@ -649,6 +649,7 @@ async fn tcp_passive_21118_read_messages(
     let (tx, mut rx) = unbounded::<Vec<u8>>();
     let (tx1, mut rx1) = unbounded::<Vec<u8>>();
     println!("21118 BBBBBBBBBBBBBBBBB{:?}", &addr);
+    //给lock加作用域
     {
         let mut s = state.lock().await;
         println!("21118 DDDDDDDDDDDDDDDD");
