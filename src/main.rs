@@ -220,7 +220,7 @@ async fn tcp_21117_read_rendezvous_message(
                     let remote_desk_id = ph.id;
                     let mut id_map = id_map.lock().await;
                     if let Some(client) = id_map.get(&remote_desk_id) {
-                        drop(id_map);
+
                         sender
                             .send(Event::Second(remote_desk_id, client.local_addr))
                             .await;
@@ -352,8 +352,9 @@ async fn tcp_21116_read_rendezvous_message(
                     if stream.send(&msg_out).await.is_ok() {
                         let remote_desk_id = ph.id;
                         let mut id_map = id_map.lock().await;
+                        let client = id_map.get(&remote_desk_id).context("")?;
                         if let Some(client) = id_map.get(&remote_desk_id) {
-                            drop(id_map);
+
                             //记录两人ip匹配关系, 给lock加作用域
                             {
                                 let mut guard = state.lock().await;
@@ -418,6 +419,7 @@ async fn tcp_active_21119_read_messages(
     let (tx1, mut rx1) = unbounded::<Vec<u8>>();
     println!("21119 AAAAAAAAAAAAAA{:?}", &addr);
     //给lock加作用域
+    let mut re = None;
     {
         let mut s = state.lock().await;
         println!("21119 CCCCCCCCC{:?}", &addr);
@@ -432,9 +434,13 @@ async fn tcp_active_21119_read_messages(
         println!("21119 22222222222{:?}", &host);
 
         if let Some(r) = s.receivers_19.get(host) {
+            re = Some(r.clone());
             drop(s);
-            tokio::spawn(fx1(tx1.clone(), r.clone()));
+
         };
+    }
+    if re.is_some(){
+        tokio::spawn(fx1(tx1.clone(), re.unwrap()));
     }
     println!("{}", "21119 333333333333");
     loop {
@@ -654,6 +660,7 @@ async fn tcp_passive_21118_read_messages(
     let (tx1, mut rx1) = unbounded::<Vec<u8>>();
 
     //给lock加作用域
+    let mut re = None;
     {
         let mut s = state.lock().await;
 
@@ -670,10 +677,15 @@ async fn tcp_passive_21118_read_messages(
         println!("21118 22222222{:?}", &host);
 
         if let Some(r) = s.receivers_18.get(host) {
+            re = Some(r.clone());
             drop(s);
-            tokio::spawn(fx2(tx1.clone(), r.clone()));
+
         }
     }
+    if re.is_some(){
+        tokio::spawn(fx2(tx1.clone(), re.unwrap()));
+    }
+
 
     println!("{}", "21118 333333333");
 
