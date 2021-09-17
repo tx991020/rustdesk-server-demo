@@ -220,6 +220,7 @@ async fn tcp_21117_read_rendezvous_message(
                     let remote_desk_id = ph.id;
                     let mut id_map = id_map.lock().await;
                     if let Some(client) = id_map.get(&remote_desk_id) {
+                        drop(id_map);
                         sender
                             .send(Event::Second(remote_desk_id, client.local_addr))
                             .await;
@@ -352,6 +353,7 @@ async fn tcp_21116_read_rendezvous_message(
                         let remote_desk_id = ph.id;
                         let mut id_map = id_map.lock().await;
                         if let Some(client) = id_map.get(&remote_desk_id) {
+                            drop(id_map);
                             //记录两人ip匹配关系, 给lock加作用域
                             {
                                 let mut guard = state.lock().await;
@@ -430,6 +432,7 @@ async fn tcp_active_21119_read_messages(
         println!("21119 22222222222{:?}", &host);
 
         if let Some(r) = s.receivers_19.get(host) {
+            drop(s);
             tokio::spawn(fx1(tx1.clone(), r.clone()));
         };
     }
@@ -667,6 +670,7 @@ async fn tcp_passive_21118_read_messages(
         println!("21118 22222222{:?}", &host);
 
         if let Some(r) = s.receivers_18.get(host) {
+            drop(s);
             tokio::spawn(fx2(tx1.clone(), r.clone()));
         }
     }
@@ -1048,6 +1052,7 @@ async fn handle_udp(
                         local_addr: addr,
                     },
                 );
+                drop(id_map);
                 socket
                     .send((Bytes::from(msg.write_to_bytes().unwrap()), addr.clone()))
                     .await;
