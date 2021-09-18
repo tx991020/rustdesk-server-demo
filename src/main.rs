@@ -529,7 +529,7 @@ async fn tcp_active_21119_read_messages(
 
 
 
-              res =  stream.next_timeout(6000) => {
+              res =  stream.next_timeout(20000) => {
                 if let Some(Ok(bytes)) =res {
                 if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                     match msg_in.union {
@@ -793,7 +793,7 @@ async fn tcp_passive_21118_read_messages(
                      }
                  }
              }
-         res =  stream.next_timeout(6000) =>  {
+         res =  stream.next_timeout(20000) =>  {
                 if let Some(Ok(bytes)) =res{
              if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                  match msg_in.union{

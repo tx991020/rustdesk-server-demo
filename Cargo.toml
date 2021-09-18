@@ -93,3 +93,7 @@ path = "apps/broadcast.rs"
 [[example]]
 name = "proxy"
 path = "apps/proxy.rs"
+
+[[example]]
+name = "consumer"
+path = "apps/consumer.rs"
