@@ -95,7 +95,7 @@ enum Event {
 //默认情况下，hbbs 侦听 21115(tcp) 和 21116(tcp/udp)，hbbr 侦听 21117(tcp)。请务必在防火墙中打开这些端口
 //上线离线问题, id,ip
 
-pub fn get_time() -> i64 {
+pub fn get_time() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
@@ -134,6 +134,7 @@ async fn main() -> Result<()> {
     //完成
     //todo 加定时遍历id_map 删除时间过小的
     // 防止两人同时连同一人
+    tokio::spawn(traverse_ip_map(id_map.clone()));
     tokio::spawn(udp_21116(id_map.clone(), ip_rcv.clone()));
     tokio::spawn(tcp_passive_21117(
         "0.0.0.0:21117",
@@ -153,6 +154,22 @@ async fn main() -> Result<()> {
 
     ctrl_c().await?;
     Ok(())
+}
+
+
+//删除30秒内没心跳的号
+async fn traverse_ip_map(id_map: Arc<Mutex<HashMap<String, client>>>) {
+    let mut interval = time::interval(Duration::from_secs(30));
+    loop {
+        let mut guard = id_map.lock().await;
+        for (key, value) in guard.into_iter() {
+            if value.timestamp < get_time() - 1000 * 30 {
+                guard.remove(&key)
+            }
+        }
+        drop(guard);
+        interval.tick().await;
+    }
 }
 
 async fn tcp_active_21116(
@@ -229,7 +246,7 @@ async fn tcp_21117_read_rendezvous_message(
                     allow_info!(format!("{:?}", &ph));
                     let mut msg = RendezvousMessage::new();
                     msg.set_relay_response(RelayResponse {
-                        relay_server: "172.122.144.113:21117".to_string(),
+                        relay_server: "39.107.33.253:21117".to_string(),
                         ..Default::default()
                     });
 
@@ -319,7 +336,7 @@ async fn tcp_21116_read_rendezvous_message(
                     allow_info!(format!("{:?}", &ph));
                     let mut msg_out = RendezvousMessage::new();
                     msg_out.set_relay_response(RelayResponse {
-                        relay_server: "172.122.144.113:21117".to_string(),
+                        relay_server: "39.107.33.253:21117".to_string(),
                         ..Default::default()
                     });
                     stream.send(&msg_out).await;
@@ -336,39 +353,53 @@ async fn tcp_21116_read_rendezvous_message(
                     stream.send(&msg_out).await;
                 }
                 //主动发打洞第一步
+                //如果对方不在线，直接报错告诉主动方
                 Some(rendezvous_message::Union::punch_hole_request(ph)) => {
                     info!("{}", "---------punch_hole_request 21116");
+                    let remote_desk_id = ph.id;
+                    let mut id_map = id_map.lock().await;
+                    let client = id_map.get(&remote_desk_id).context("not found");
+                    drop(id_map);
+
+                    if client.is_err() {
+                        let mut msg_out = RendezvousMessage::new();
+
+
+                        msg_out.set_punch_hole_response(PunchHoleResponse {
+                            socket_addr: AddrMangle::encode(addr),
+                            pk: vec![] as Vec<u8>,
+                            failure: protobuf::ProtobufEnumOrUnknown::from(punch_hole_response::Failure::OFFLINE),
+                            relay_server: "39.107.33.253:21116".to_string(),
+                            union: std::option::Option::Some(punch_hole_response::Union::is_local(
+                                false,
+                            )),
+                            ..Default::default()
+                        });
+                        stream.send(&msg_out).await;
+                        return Err(anyhow!("对方不在线"));
+                    }
                     let mut msg_out = RendezvousMessage::new();
                     msg_out.set_punch_hole_response(PunchHoleResponse {
                         socket_addr: AddrMangle::encode(addr),
                         pk: vec![] as Vec<u8>,
-                        relay_server: "172.122.144.113:21116".to_string(),
+                        relay_server: "39.107.33.253:21116".to_string(),
                         union: std::option::Option::Some(punch_hole_response::Union::is_local(
                             false,
                         )),
                         ..Default::default()
                     });
-                    if stream.send(&msg_out).await.is_ok() {
-                        let remote_desk_id = ph.id;
-                        let mut id_map = id_map.lock().await;
-                        let client = id_map.get(&remote_desk_id).context("")?;
-                        if let Some(client) = id_map.get(&remote_desk_id) {
-
-                            //记录两人ip匹配关系, 给lock加作用域
-                            {
-                                let mut guard = state.lock().await;
-                                let k = addr.ip().to_string();
-                                let v = client.local_addr.ip().to_string();
-                                info!("TTTTTTTTTTTTTTT  {:?} v {:?}", &k, &v);
-                                guard.kv.insert(k.clone(), v.clone());
-                                guard.kv.insert(v, k);
-                            }
-
-                            sender
-                                .send(Event::First(remote_desk_id, client.local_addr))
-                                .await;
-                        }
+                    stream.send(&msg_out).await?;
+                    //记录两人ip匹配关系, 给lock加作用域
+                    {
+                        let mut guard = state.lock().await;
+                        let k = addr.ip().to_string();
+                        let v = client.local_addr.ip().to_string();
+                        info!("TTTTTTTTTTTTTTT  {:?} v {:?}", &k, &v);
+                        guard.kv.insert(k.clone(), v.clone());
+                        guard.kv.insert(v, k);
                     }
+
+                    sender.send(Event::First(remote_desk_id, client.local_addr)).await;
                 }
                 Some(rendezvous_message::Union::request_relay(ph)) => {
                     let mut msg_out = RendezvousMessage::new();
@@ -978,7 +1009,7 @@ async fn udp_send_fetch_local_addr(
     addr: std::net::SocketAddr,
 ) -> Result<()> {
     let mut msg = RendezvousMessage::new();
-    let addr1 = to_socket_addr("172.122.144.113:21117").unwrap();
+    let addr1 = to_socket_addr("39.107.33.253:21117").unwrap();
 
     let vec1 = AddrMangle::encode(addr1);
     msg.set_fetch_local_addr(FetchLocalAddr {
