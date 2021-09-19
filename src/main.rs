@@ -20,6 +20,7 @@ use hbb_common::{
     udp::FramedSocket,
     AddrMangle,
 };
+use hbb_common::tokio::time;
 use hbb_common::{log, ResultType};
 use std::collections::BTreeSet;
 use std::net::SocketAddr;
@@ -162,11 +163,10 @@ async fn traverse_ip_map(id_map: Arc<Mutex<HashMap<String, client>>>) {
     let mut interval = time::interval(Duration::from_secs(30));
     loop {
         let mut guard = id_map.lock().await;
-        for (key, value) in guard.into_iter() {
-            if value.timestamp < get_time() - 1000 * 30 {
-                guard.remove(&key)
-            }
-        }
+        guard.retain(|key, value| {
+            value.timestamp > get_time()-1000*30
+
+        });
         drop(guard);
         interval.tick().await;
     }
@@ -359,7 +359,7 @@ async fn tcp_21116_read_rendezvous_message(
                     let remote_desk_id = ph.id;
                     let mut id_map = id_map.lock().await;
                     let client = id_map.get(&remote_desk_id).context("not found");
-                    drop(id_map);
+
 
                     if client.is_err() {
                         let mut msg_out = RendezvousMessage::new();
@@ -378,6 +378,8 @@ async fn tcp_21116_read_rendezvous_message(
                         stream.send(&msg_out).await;
                         return Err(anyhow!("对方不在线"));
                     }
+
+                    let client = client?;
                     let mut msg_out = RendezvousMessage::new();
                     msg_out.set_punch_hole_response(PunchHoleResponse {
                         socket_addr: AddrMangle::encode(addr),
