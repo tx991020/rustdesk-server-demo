@@ -61,6 +61,7 @@ struct Shared {
     receivers_19: HashMap<SocketAddr, Rx>,
     kv: HashMap<SocketAddr, String>,
     kv1: HashMap<SocketAddr, SocketAddr>,
+    kv2: HashMap<String, SocketAddr>,
     status: HashMap<SocketAddr, i8>,
 
 }
@@ -74,6 +75,7 @@ impl Shared {
             status: HashMap::new(),
             kv: HashMap::new(),
             kv1: HashMap::new(),
+            kv2: HashMap::new(),
         }
     }
 }
@@ -256,6 +258,9 @@ async fn tcp_21117_read_rendezvous_message(
                             let remote_desk_id = ph.id;
                             let mut id_map = id_map.lock().await;
                             if let Some(client) = id_map.get(&remote_desk_id) {
+                                let mut guard1 = state.lock().await;
+                                guard1.kv2.insert(remote_desk_id.clone(),addr);
+                                drop(guard1);
                                 sender
                                     .send(Event::Second(remote_desk_id, client.local_addr))
                                     .await;
@@ -300,7 +305,7 @@ async fn tcp_21117_read_rendezvous_message(
                             stream.send_raw(msg.write_to_bytes().unwrap()).await?;
 
                             let mut s = state.lock().await;
-                            s.kv.insert(addr, ph.uuid);
+                            s.kv.insert(addr, ph.id);
                             s.status.insert(addr, 1);
                             drop(s);
                         }
@@ -325,12 +330,18 @@ async fn tcp_21117_read_rendezvous_message(
                 println!("21117 CCCCCCCCC{:?}", &addr);
                 s.receivers_18.insert(addr, rx.clone());
                 println!("21117 1111111111{:?},{:#?}", &addr, s.kv);
-                let res = s.kv1.get(&addr).context("not get remote ip");
+
+                let res = s.kv.get(&addr).context("not get remote ip");
                 if res.is_err() {
-                    println!("{}", "21111111119 5555555")
+                    println!("{}", "21111117 s.kv not found ")
                 }
-                let host = res?;
-                println!("21117 22222222222{:?}", &host);
+                let id = res?;
+                let res1 = s.kv2.get(id).context("kv2 not found");
+                if res1.is_err() {
+                    println!("{}", "21111117 s.kv2 not found")
+                }
+                let host = res1?;
+
 
                 if let Some(r) = s.receivers_19.get(host) {
                     re = Some(r.clone());
@@ -580,11 +591,11 @@ async fn tcp_21116_read_rendezvous_message(
     addr: SocketAddr,
 ) -> Result<()> {
     let mut stream = FramedStream::from(stream);
-    let mut step =0;
+    let mut step = 0;
     let guard = state.lock().await;
     let mut opt = guard.status.get(&addr);
-    if opt.is_some(){
-        step =1
+    if opt.is_some() {
+        step = 1
     }
     drop(guard);
 
@@ -669,7 +680,7 @@ async fn tcp_21116_read_rendezvous_message(
                             stream.send(&msg_out).await?;
 
                             let mut s = state.lock().await;
-                            s.kv.insert(addr, ph.uuid);
+                            s.kv.insert(addr, ph.id);
                             s.status.insert(addr, 1);
                             drop(s);
                         }
@@ -698,13 +709,16 @@ async fn tcp_21116_read_rendezvous_message(
 
 
                 println!("21118 1111111111{:?},{:#?}", &addr, s.kv);
-                let res = s.kv1.get(&addr).context("not get remote ip");
+                let res = s.kv.get(&addr).context("not get remote ip");
                 if res.is_err() {
-                    println!("{}", "21111118 6666666")
+                    println!("{}", "21111118 s.kv not found ")
                 }
-                let host = res?;
-
-                println!("21118 22222222{:?}", &host);
+                let id = res?;
+                let res1 = s.kv2.get(id).context("kv2 not found");
+                if res1.is_err() {
+                    println!("{}", "21111118 s.kv2 not found")
+                }
+                let host = res1?;
 
                 if let Some(r) = s.receivers_18.get(host) {
                     re = Some(r.clone());
@@ -940,7 +954,10 @@ async fn tcp_21116_read_rendezvous_message(
                              }
                                 }
                          }
-                            }
+                            }else {
+                            info!("tcp 21116连接超时");
+                            break
+                }
                      }
 
                      }
