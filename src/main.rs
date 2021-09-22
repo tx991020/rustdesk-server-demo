@@ -350,7 +350,7 @@ async fn tcp_21117_read_rendezvous_message(
                 println!("{}", "MMMMMMMMMMMMMMMMMMMM  message from 21118");
                 tokio::spawn(fx1(tx1.clone(), re.unwrap()));
             };
-
+            let mut interval = time::interval(Duration::from_secs(30));
             loop {
                 select! {
 
@@ -548,6 +548,10 @@ async fn tcp_21117_read_rendezvous_message(
                     break
                 }
             }
+             _ = interval.tick()=>{
+                         info!("21117 tcp 没有收到任何消息超时");
+                        break;
+                    }
             else => {
             info!("{}","error ---------- 211119 ");
 
@@ -730,7 +734,7 @@ async fn tcp_21116_read_rendezvous_message(
 
 
             println!("{}", "21118 333333333");
-
+            let mut interval = time::interval(Duration::from_secs(30));
             loop {
                 select! {
                     Ok(bytes) = rx1.recv() => {
@@ -955,8 +959,12 @@ async fn tcp_21116_read_rendezvous_message(
                             }else {
                             info!("tcp 21116连接超时");
                             break
-                }
+                        }
                      }
+                     _ = interval.tick()=>{
+                         info!("tcp 没有收到任何消息超时");
+                        break;
+                    }
 
                      }
             }
