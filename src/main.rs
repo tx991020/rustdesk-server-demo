@@ -118,24 +118,11 @@ async fn main() -> Result<()> {
     //     .init();
     tracing_subscriber::fmt::init();
 
-    // let mut listener_passive = new_listener("0.0.0.0:21117", false).await.unwrap();
-    // let mut listener_passive1 = new_listener("0.0.0.0:21118", false).await.unwrap();
-
-    //两个quic raw_data channel
-    // let (tx_from_active, mut rx_from_active) = async_channel::unbounded::<Vec<u8>>();
-    // let (tx_from_passive, mut rx_from_passive) = async_channel::unbounded::<Vec<u8>>();
 
     let (ip_sender, mut ip_rcv) = async_channel::unbounded::<Event>();
 
-    // tcp_demo("0.0.0.0:21116").await?;
     let mut id_map: Arc<Mutex<HashMap<String, client>>> = Arc::new(Mutex::new(HashMap::new()));
     let state = Arc::new(Mutex::new(Shared::new()));
-
-    // udp_demo("", &mut id_map);
-    // tcp_21117("0.0.0.0:21117").await?;
-    //完成
-    //todo 加定时遍历id_map 删除时间过小的
-    // 防止两人同时连同一人
     tokio::spawn(traverse_ip_map(id_map.clone(), state.clone()));
     tokio::spawn(udp_21116(id_map.clone(), ip_rcv.clone()));
     tokio::spawn(tcp_passive_21117(
@@ -151,7 +138,7 @@ async fn main() -> Result<()> {
         state.clone(),
         ip_sender.clone(),
     ));
-    //一对一的websocket
+
 
     ctrl_c().await?;
     Ok(())
@@ -162,11 +149,11 @@ async fn traverse_ip_map(id_map: Arc<Mutex<HashMap<String, client>>>, state: Arc
     let mut interval = time::interval(Duration::from_secs(30));
     loop {
         let mut guard = id_map.lock().await;
-        println!("在线用户{:#?}", guard);
+        // println!("在线用户{:#?}", guard);
         guard.retain(|key, value| value.timestamp > get_time() - 1000 * 20);
         drop(guard);
         let guard1 = state.lock().await;
-        println!("在线tcp连接{:#?}，{:#?}", guard1.kv16, guard1.kv17);
+        // println!("在线tcp连接{:#?}，{:#?}", guard1.kv16, guard1.kv17);
         drop(guard1);
         interval.tick().await;
     }
@@ -570,7 +557,7 @@ async fn tcp_21117_read_rendezvous_message(
         }
          _ = interval.tick()=>{
                      info!("21117 tcp 没有收到任何消息超时");
-                    break;
+
                 }
         else => {
             info!("{}","error ---------- 211119 ");
@@ -950,7 +937,7 @@ async fn tcp_21116_read_rendezvous_message(
          }
          _ = interval.tick()=>{
              info!("tcp 没有收到任何消息超时");
-            break;
+
         }
 
          }
