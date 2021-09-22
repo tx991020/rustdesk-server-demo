@@ -57,10 +57,10 @@ type Tx = Sender<Vec<u8>>;
 type Rx = Receiver<Vec<u8>>;
 
 struct Shared {
-    receivers_18: HashMap<SocketAddr, Rx>,
-    receivers_19: HashMap<SocketAddr, Rx>,
-    kv: HashMap<SocketAddr, String>,
-    kv2: HashMap<String, SocketAddr>,
+    receivers_16: HashMap<SocketAddr, Rx>,
+    receivers_17: HashMap<SocketAddr, Rx>,
+    kv16: HashMap<String, SocketAddr>,
+    kv17: HashMap<String, SocketAddr>,
     status: HashMap<SocketAddr, i8>,
 
 }
@@ -69,11 +69,11 @@ impl Shared {
     /// Create a new, empty, instance of `Shared`.
     fn new() -> Self {
         Shared {
-            receivers_18: HashMap::new(),
-            receivers_19: HashMap::new(),
+            receivers_16: HashMap::new(),
+            receivers_17: HashMap::new(),
             status: HashMap::new(),
-            kv: HashMap::new(),
-            kv2: HashMap::new(),
+            kv16: HashMap::new(),
+            kv17: HashMap::new(),
         }
     }
 }
@@ -172,7 +172,7 @@ async fn traverse_ip_map(id_map: Arc<Mutex<HashMap<String, client>>>, state: Arc
         });
         drop(guard);
         let guard1 = state.lock().await;
-        println!("在线tcp连接{:#?}，{:#?}", guard1.kv,guard1.kv2);
+        println!("在线tcp连接{:#?}，{:#?}", guard1.kv16, guard1.kv17);
         drop(guard1);
         interval.tick().await;
     }
@@ -252,13 +252,9 @@ async fn tcp_21117_read_rendezvous_message(
                 if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
                     match msg_in.union {
                         Some(rendezvous_message::Union::local_addr(ph)) => {
-                            info!("{}", "---------local_addr 21117");
                             let remote_desk_id = ph.id;
                             let mut id_map = id_map.lock().await;
                             if let Some(client) = id_map.get(&remote_desk_id) {
-                                let mut guard1 = state.lock().await;
-                                guard1.kv2.insert(remote_desk_id.clone(),addr);
-                                drop(guard1);
                                 sender
                                     .send(Event::Second(remote_desk_id, client.local_addr))
                                     .await;
@@ -287,7 +283,7 @@ async fn tcp_21117_read_rendezvous_message(
                         }
 
                         Some(rendezvous_message::Union::request_relay(ph)) => {
-                            allow_info!(format!("被动方 uuid {:?}, {:?}",&ph.uuid,&ph.id));
+                            allow_info!(format!("被动方 290 uuid {:?}, {:?},{:?}",&ph.uuid,&ph.id,&addr));
 
 
                             let mut msg = RendezvousMessage::new();
@@ -303,7 +299,7 @@ async fn tcp_21117_read_rendezvous_message(
                             stream.send_raw(msg.write_to_bytes().unwrap()).await?;
 
                             let mut s = state.lock().await;
-                            s.kv.insert(addr, ph.id);
+                            s.kv17.insert(ph.id, addr);
                             s.status.insert(addr, 1);
                             drop(s);
                         }
@@ -326,22 +322,17 @@ async fn tcp_21117_read_rendezvous_message(
             {
                 let mut s = state.lock().await;
                 println!("21117 CCCCCCCCC{:?}", &addr);
-                s.receivers_18.insert(addr, rx.clone());
-                println!("21117 1111111111{:?},{:#?}", &addr, s.kv);
+                s.receivers_16.insert(addr, rx.clone());
+                println!("21117 1111111111{:?},{:#?},{:#?}", &addr, s.kv16,s.kv17);
 
-                let res = s.kv.get(&addr).context("not get remote ip");
-                if res.is_err() {
-                    println!("{}", "21111117 s.kv not found ")
+                let mut key ="";
+                for (k, v) in s.kv17.iter() {
+                    if v == &addr {
+                        key = k
+                    }
                 }
-                let id = res?;
-                let res1 = s.kv2.get(id).context("kv2 not found");
-                if res1.is_err() {
-                    println!("{}", "21111117 s.kv2 not found")
-                }
-                let host = res1?;
-
-
-                if let Some(r) = s.receivers_19.get(host) {
+                let host = s.kv16.get(key).context("not found")?;
+                if let Some(r) = s.receivers_17.get(host) {
                     re = Some(r.clone());
                     drop(s);
                 };
@@ -668,7 +659,7 @@ async fn tcp_21116_read_rendezvous_message(
                             sender.send(Event::First(remote_desk_id, client.local_addr)).await;
                         }
                         Some(rendezvous_message::Union::request_relay(ph)) => {
-                            allow_info!(format!("主动方生成的uuid {:?}, 对方rustdeskId{:?}",&ph.uuid,&ph.id));
+                            allow_info!(format!("主动方 671 生成的uuid {:?}, 对方rustdeskId{:?},{:?}",&ph.uuid, &ph.id, &addr));
                             let mut msg_out = RendezvousMessage::new();
                             msg_out.set_relay_response(RelayResponse {
                                 socket_addr: vec![],
@@ -682,7 +673,7 @@ async fn tcp_21116_read_rendezvous_message(
                             stream.send(&msg_out).await?;
 
                             let mut s = state.lock().await;
-                            s.kv.insert(addr, ph.id);
+                            s.kv16.insert(ph.id, addr);
                             s.status.insert(addr, 1);
                             drop(s);
                         }
@@ -707,22 +698,17 @@ async fn tcp_21116_read_rendezvous_message(
             {
                 let mut s = state.lock().await;
 
-                s.receivers_19.insert(addr, rx.clone());
-
-
-                println!("21118 1111111111{:?},{:#?}", &addr, s.kv);
-                let res = s.kv.get(&addr).context("not get remote ip");
-                if res.is_err() {
-                    println!("{}", "21111118 s.kv not found ")
+                s.receivers_17.insert(addr, rx.clone());
+                let mut key = "";
+                for (k, v) in s.kv16.iter() {
+                    if v == &addr {
+                       key = k
+                    }
                 }
-                let id = res?;
-                let res1 = s.kv2.get(id).context("kv2 not found");
-                if res1.is_err() {
-                    println!("{}", "21111118 s.kv2 not found")
-                }
-                let host = res1?;
+                info!("21116 key ---------{}", key);
+                let host = s.kv17.get(key).context("not found")?;
 
-                if let Some(r) = s.receivers_18.get(host) {
+                if let Some(r) = s.receivers_16.get(host) {
                     re = Some(r.clone());
                     drop(s);
                 }
