@@ -60,7 +60,6 @@ struct Shared {
     receivers_18: HashMap<SocketAddr, Rx>,
     receivers_19: HashMap<SocketAddr, Rx>,
     kv: HashMap<SocketAddr, String>,
-    kv1: HashMap<SocketAddr, SocketAddr>,
     kv2: HashMap<String, SocketAddr>,
     status: HashMap<SocketAddr, i8>,
 
@@ -74,7 +73,6 @@ impl Shared {
             receivers_19: HashMap::new(),
             status: HashMap::new(),
             kv: HashMap::new(),
-            kv1: HashMap::new(),
             kv2: HashMap::new(),
         }
     }
@@ -174,7 +172,7 @@ async fn traverse_ip_map(id_map: Arc<Mutex<HashMap<String, client>>>, state: Arc
         });
         drop(guard);
         let guard1 = state.lock().await;
-        println!("在线tcp连接{:#?}", guard1.kv);
+        println!("在线tcp连接{:#?}，{:#?}", guard1.kv,guard1.kv2);
         drop(guard1);
         interval.tick().await;
     }
