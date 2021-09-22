@@ -6,6 +6,7 @@ use crate::tokio::time::interval;
 use hbb_common::bytes::Bytes;
 use hbb_common::message_proto::{message, Message};
 use hbb_common::tokio::sync::{mpsc, RwLock};
+use hbb_common::tokio::time;
 use hbb_common::{
     allow_err, allow_info,
     anyhow::{anyhow, Context, Result},
@@ -20,7 +21,6 @@ use hbb_common::{
     udp::FramedSocket,
     AddrMangle,
 };
-use hbb_common::tokio::time;
 use hbb_common::{log, ResultType};
 use std::collections::BTreeSet;
 use std::net::SocketAddr;
@@ -62,7 +62,6 @@ struct Shared {
     kv16: HashMap<String, SocketAddr>,
     kv17: HashMap<String, SocketAddr>,
     status: HashMap<SocketAddr, i8>,
-
 }
 
 impl Shared {
@@ -84,7 +83,6 @@ struct client {
     timestamp: u64,
     local_addr: SocketAddr,
     uuid: String,
-
 }
 
 #[derive(Debug, Clone)]
@@ -155,11 +153,9 @@ async fn main() -> Result<()> {
     ));
     //一对一的websocket
 
-
     ctrl_c().await?;
     Ok(())
 }
-
 
 //删除30秒内没心跳的号
 async fn traverse_ip_map(id_map: Arc<Mutex<HashMap<String, client>>>, state: Arc<Mutex<Shared>>) {
@@ -167,9 +163,7 @@ async fn traverse_ip_map(id_map: Arc<Mutex<HashMap<String, client>>>, state: Arc
     loop {
         let mut guard = id_map.lock().await;
         println!("在线用户{:#?}", guard);
-        guard.retain(|key, value| {
-            value.timestamp > get_time() - 1000 * 20
-        });
+        guard.retain(|key, value| value.timestamp > get_time() - 1000 * 20);
         drop(guard);
         let guard1 = state.lock().await;
         println!("在线tcp连接{:#?}，{:#?}", guard1.kv16, guard1.kv17);
@@ -245,9 +239,9 @@ async fn tcp_21117_read_rendezvous_message(
         step = 1
     }
     drop(guard);
-
-    match step {
-        0 => {
+    println!("fffffffffff 248  step {},{:?}", step, addr);
+    loop {
+        if step == 0 {
             if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
                 if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
                     match msg_in.union {
@@ -283,8 +277,10 @@ async fn tcp_21117_read_rendezvous_message(
                         }
 
                         Some(rendezvous_message::Union::request_relay(ph)) => {
-                            allow_info!(format!("被动方 290 uuid {:?}, {:?},{:?}",&ph.uuid,&ph.id,&addr));
-
+                            allow_info!(format!(
+                                "被动方 290 uuid {:?}, {:?},{:?}",
+                                &ph.uuid, &ph.id, &addr
+                            ));
 
                             let mut msg = RendezvousMessage::new();
                             msg.set_relay_response(RelayResponse {
@@ -302,257 +298,259 @@ async fn tcp_21117_read_rendezvous_message(
                             s.kv17.insert(ph.id, addr);
                             s.status.insert(addr, 1);
                             drop(s);
+                            break;
                         }
 
                         _ => {
                             println!("tcp21117_read_rendezvous_message {:?}", &msg_in);
+
                         }
                     }
                 }
             } else {
                 allow_info!("21117  timeout");
+                break;
             }
         }
-        1 => {
-            let (tx, mut rx) = unbounded::<Vec<u8>>();
-            let (tx1, mut rx1) = unbounded::<Vec<u8>>();
-            println!("21117 AAAAAAAAAAAAAA{:?}", &addr);
-            //给lock加作用域
-            let mut re = None;
-            {
-                let mut s = state.lock().await;
-                println!("21117 CCCCCCCCC{:?}", &addr);
-                s.receivers_16.insert(addr, rx.clone());
-                println!("21117 1111111111{:?},{:#?},{:#?}", &addr, s.kv16,s.kv17);
+    }
 
-                let mut key ="";
-                for (k, v) in s.kv17.iter() {
-                    if v == &addr {
-                        key = k
-                    }
-                }
-                let host = s.kv16.get(key).context("not found")?;
-                if let Some(r) = s.receivers_17.get(host) {
-                    re = Some(r.clone());
-                    drop(s);
-                };
+    let (tx, mut rx) = unbounded::<Vec<u8>>();
+    let (tx1, mut rx1) = unbounded::<Vec<u8>>();
+    println!("21117 AAAAAAAAAAAAAA{:?}", &addr);
+    //给lock加作用域
+    let mut re = None;
+    {
+        let mut s = state.lock().await;
+        println!("21117 CCCCCCCCC{:?}", &addr);
+        s.receivers_16.insert(addr, rx.clone());
+        println!("21117 1111111111{:?},{:#?},{:#?}", &addr, s.kv16, s.kv17);
+
+        let mut key = "";
+        for (k, v) in s.kv17.iter() {
+            if v == &addr {
+                key = k
             }
-            if re.is_some() {
-                println!("{}", "MMMMMMMMMMMMMMMMMMMM  message from 21118");
-                tokio::spawn(fx1(tx1.clone(), re.unwrap()));
-            };
-            let mut interval = time::interval(Duration::from_secs(30));
-            loop {
-                select! {
+        }
+        info!("21117 key ---------{}", key);
+        let host = s.kv16.get(key).context("not found")?;
+        if let Some(r) = s.receivers_17.get(host) {
+            re = Some(r.clone());
+            drop(s);
+        };
+    }
+    if re.is_some() {
+        println!("{}", "MMMMMMMMMMMMMMMMMMMM  message from 21118");
+        tokio::spawn(fx1(tx1.clone(), re.unwrap()));
+    };
+    info!("{}", "2117 344444444444");
+    let mut interval = time::interval(Duration::from_secs(30));
+    loop {
+        select! {
 
-               Ok(bytes) = rx1.recv() => {
-                println!("{}", "21117 ---------------- recv");
-                   if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
-                       match msg_in.union {
-                                Some(message::Union::hash(hash)) => {
-                                   allow_info!(format!("第一步21117 Receiver hash {:?}", &hash));
-                                   let mut msg = Message::new();
-                                   msg.set_hash(hash);
+           Ok(bytes) = rx1.recv() => {
+            println!("{}", "21117 ---------------- recv");
+               if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
+                   match msg_in.union {
+                            Some(message::Union::hash(hash)) => {
+                               allow_info!(format!("第一步21117 Receiver hash {:?}", &hash));
+                               let mut msg = Message::new();
+                               msg.set_hash(hash);
 
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                                }
-                                Some(message::Union::test_delay(hash)) => {
-                                   allow_info!(format!("21117 Receiver test_delay {:?}", &hash));
-                                   let mut msg = Message::new();
-                                   msg.set_test_delay(hash);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                               }
-                                //完成
-                               Some(message::Union::video_frame(hash)) => {
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                            }
+                            Some(message::Union::test_delay(hash)) => {
+                               allow_info!(format!("21117 Receiver test_delay {:?}", &hash));
+                               let mut msg = Message::new();
+                               msg.set_test_delay(hash);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                           }
+                            //完成
+                           Some(message::Union::video_frame(hash)) => {
 
-                                   let mut msg = Message::new();
-                                   msg.set_video_frame(hash);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                               }
-                               Some(message::Union::login_response(hash)) => {
-                                   allow_info!(format!("21117 Receiver login_response {:?}", &hash));
-                                   let mut msg = Message::new();
-                                   msg.set_login_response(hash);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                               }
-                                //完成
-                               Some(message::Union::cursor_data(cd)) => {
+                               let mut msg = Message::new();
+                               msg.set_video_frame(hash);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                           }
+                           Some(message::Union::login_response(hash)) => {
+                               allow_info!(format!("21117 Receiver login_response {:?}", &hash));
+                               let mut msg = Message::new();
+                               msg.set_login_response(hash);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                           }
+                            //完成
+                           Some(message::Union::cursor_data(cd)) => {
 
-                                   let mut msg = Message::new();
-                                   msg.set_cursor_data(cd);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                               }
-                               Some(message::Union::cursor_id(id)) => {
-                                   allow_info!(format!("21117 Receiver cursor_id{:?}", &id));
-                                   // stream.send_raw(id.write_to_bytes().unwrap()).await;
-                                   let mut msg = Message::new();
-                                   msg.set_cursor_id(id);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                               let mut msg = Message::new();
+                               msg.set_cursor_data(cd);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                           }
+                           Some(message::Union::cursor_id(id)) => {
+                               allow_info!(format!("21117 Receiver cursor_id{:?}", &id));
+                               // stream.send_raw(id.write_to_bytes().unwrap()).await;
+                               let mut msg = Message::new();
+                               msg.set_cursor_id(id);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
 
-                               }
-                               Some(message::Union::cursor_position(cp)) => {
+                           }
+                           Some(message::Union::cursor_position(cp)) => {
 
-                                   let mut msg = Message::new();
-                                   msg.set_cursor_position(cp);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                               }
-                                //完成
-                               Some(message::Union::clipboard(cb)) => {
-                                   let mut msg = Message::new();
-                                   msg.set_clipboard(cb);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                               }
-                               Some(message::Union::file_response(fr)) => {
+                               let mut msg = Message::new();
+                               msg.set_cursor_position(cp);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                           }
+                            //完成
+                           Some(message::Union::clipboard(cb)) => {
+                               let mut msg = Message::new();
+                               msg.set_clipboard(cb);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                           }
+                           Some(message::Union::file_response(fr)) => {
 
-                                   let mut msg = Message::new();
-                                   msg.set_file_response(fr);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                               }
-                               Some(message::Union::misc(misc)) => {
+                               let mut msg = Message::new();
+                               msg.set_file_response(fr);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                           }
+                           Some(message::Union::misc(misc)) => {
 
-                                   let mut msg = Message::new();
-                                   msg.set_misc(misc);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                               }
-                               Some(message::Union::audio_frame(frame)) => {
+                               let mut msg = Message::new();
+                               msg.set_misc(misc);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                           }
+                           Some(message::Union::audio_frame(frame)) => {
 
-                                   let mut msg = Message::new();
-                                   msg.set_audio_frame(frame);
-                                   stream.send_raw(msg.write_to_bytes().unwrap()).await?;
-                               }
-                                _ => {
-                                    allow_info!(format!("tcp_active_21117  read_messages {:?}", &msg_in));
-                                }
-                       }
+                               let mut msg = Message::new();
+                               msg.set_audio_frame(frame);
+                               stream.send_raw(msg.write_to_bytes().unwrap()).await?;
+                           }
+                            _ => {
+                                allow_info!(format!("tcp_active_21117  read_messages {:?}", &msg_in));
+                            }
                    }
                }
+           }
 
 
 
 
-              res =  stream.next_timeout(3000) => {
-                if let Some(Ok(bytes)) =res {
-                if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
-                    match msg_in.union {
-                        Some(message::Union::signed_id(hash)) => {
-                            allow_info!(format!("active signed_id {:?}", &hash));
-                            let mut msg = Message::new();
-                            msg.set_signed_id(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::public_key(hash)) => {
-                            allow_info!(format!("active public_key {:?}", &hash));
-                            let mut msg = Message::new();
-                            msg.set_public_key(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::test_delay(hash)) => {
-                            allow_info!(format!("active test_delay {:?}", &hash));
-                            let mut msg = Message::new();
-                            msg.set_test_delay(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::video_frame(hash)) => {
-                            let mut msg = Message::new();
-                            msg.set_video_frame(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::login_request(hash)) => {
-                            allow_info!(format!("active login_request {:?}", &hash));
-                            let mut msg = Message::new();
-                            msg.set_login_request(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::login_response(hash)) => {
-                            allow_info!(format!("active login_response {:?}", &hash));
-                            let mut msg = Message::new();
-                            msg.set_login_response(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-
-                        Some(message::Union::mouse_event(hash)) => {
-
-                            let mut msg = Message::new();
-                            msg.set_mouse_event(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::audio_frame(hash)) => {
-
-                            let mut msg = Message::new();
-                            msg.set_audio_frame(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::cursor_data(hash)) => {
-                            let mut msg = Message::new();
-                            msg.set_cursor_data(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::cursor_position(hash)) => {
-
-                            let mut msg = Message::new();
-                            msg.set_cursor_position(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::cursor_id(hash)) => {
-                            allow_info!(format!("active cursor_id{:?}", &hash));
-                            let mut msg = Message::new();
-                            msg.set_cursor_id(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-
-                        Some(message::Union::key_event(hash)) => {
-
-                            let mut msg = Message::new();
-                            msg.set_key_event(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::clipboard(hash)) => {
-                            let mut msg = Message::new();
-                            msg.set_clipboard(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::file_action(hash)) => {
-
-                            let mut msg = Message::new();
-                            msg.set_file_action(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::file_response(hash)) => {
-
-                            let mut msg = Message::new();
-                            msg.set_file_response(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        Some(message::Union::misc(hash)) => {
-
-                            let mut msg = Message::new();
-                            msg.set_misc(hash);
-                            tx.send(msg.write_to_bytes().unwrap()).await?;
-                        }
-                        _ => {
-                            allow_info!(format!("tcp_active_21117  read_messages {:?}", &msg_in));
-                        }
+          res =  stream.next_timeout(3000) => {
+            if let Some(Ok(bytes)) =res {
+            if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
+                match msg_in.union {
+                    Some(message::Union::signed_id(hash)) => {
+                        allow_info!(format!("active signed_id {:?}", &hash));
+                        let mut msg = Message::new();
+                        msg.set_signed_id(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
                     }
-                }
-                    }else {
-                    info!("tcp 21117连接超时");
-                    break
+                    Some(message::Union::public_key(hash)) => {
+                        allow_info!(format!("active public_key {:?}", &hash));
+                        let mut msg = Message::new();
+                        msg.set_public_key(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::test_delay(hash)) => {
+                        allow_info!(format!("active test_delay {:?}", &hash));
+                        let mut msg = Message::new();
+                        msg.set_test_delay(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::video_frame(hash)) => {
+                        let mut msg = Message::new();
+                        msg.set_video_frame(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::login_request(hash)) => {
+                        allow_info!(format!("active login_request {:?}", &hash));
+                        let mut msg = Message::new();
+                        msg.set_login_request(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::login_response(hash)) => {
+                        allow_info!(format!("active login_response {:?}", &hash));
+                        let mut msg = Message::new();
+                        msg.set_login_response(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+
+                    Some(message::Union::mouse_event(hash)) => {
+
+                        let mut msg = Message::new();
+                        msg.set_mouse_event(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::audio_frame(hash)) => {
+
+                        let mut msg = Message::new();
+                        msg.set_audio_frame(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::cursor_data(hash)) => {
+                        let mut msg = Message::new();
+                        msg.set_cursor_data(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::cursor_position(hash)) => {
+
+                        let mut msg = Message::new();
+                        msg.set_cursor_position(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::cursor_id(hash)) => {
+                        allow_info!(format!("active cursor_id{:?}", &hash));
+                        let mut msg = Message::new();
+                        msg.set_cursor_id(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+
+                    Some(message::Union::key_event(hash)) => {
+
+                        let mut msg = Message::new();
+                        msg.set_key_event(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::clipboard(hash)) => {
+                        let mut msg = Message::new();
+                        msg.set_clipboard(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::file_action(hash)) => {
+
+                        let mut msg = Message::new();
+                        msg.set_file_action(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::file_response(hash)) => {
+
+                        let mut msg = Message::new();
+                        msg.set_file_response(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    Some(message::Union::misc(hash)) => {
+
+                        let mut msg = Message::new();
+                        msg.set_misc(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
+                    _ => {
+                        allow_info!(format!("tcp_active_21117  read_messages {:?}", &msg_in));
+                    }
                 }
             }
-             _ = interval.tick()=>{
-                         info!("21117 tcp 没有收到任何消息超时");
-                        break;
-                    }
-            else => {
+                }else {
+                info!("tcp 21117连接超时");
+                break
+            }
+        }
+         _ = interval.tick()=>{
+                     info!("21117 tcp 没有收到任何消息超时");
+                    break;
+                }
+        else => {
             info!("{}","error ---------- 211119 ");
 
+                }
             }
-        }
-            };
-        }
-        _ => {}
-    };
-
+    }
 
     Ok(())
 }
@@ -575,7 +573,6 @@ async fn tcp_21117_read_rendezvous_message(
 //     Ok(())
 // }
 
-
 async fn tcp_21116_read_rendezvous_message(
     mut stream: TcpStream,
     id_map: Arc<Mutex<HashMap<String, client>>>,
@@ -592,9 +589,10 @@ async fn tcp_21116_read_rendezvous_message(
     }
     drop(guard);
 
+    println!("gggggggggg 596  step {}, addr {:?}", step, addr);
 
-    match step {
-        0 => {
+    loop {
+        if step == 0 {
             if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
                 if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
                     match msg_in.union {
@@ -626,16 +624,17 @@ async fn tcp_21116_read_rendezvous_message(
                             let mut id_map = id_map.lock().await;
                             let client = id_map.get(&remote_desk_id).context("not found");
 
-
                             if client.is_err() {
                                 let mut msg_out = RendezvousMessage::new();
                                 msg_out.set_punch_hole_response(PunchHoleResponse {
                                     pk: vec![] as Vec<u8>,
-                                    failure: protobuf::ProtobufEnumOrUnknown::from(punch_hole_response::Failure::OFFLINE),
+                                    failure: protobuf::ProtobufEnumOrUnknown::from(
+                                        punch_hole_response::Failure::OFFLINE,
+                                    ),
                                     relay_server: "39.107.33.253:21116".to_string(),
-                                    union: std::option::Option::Some(punch_hole_response::Union::is_local(
-                                        false,
-                                    )),
+                                    union: std::option::Option::Some(
+                                        punch_hole_response::Union::is_local(false),
+                                    ),
                                     ..Default::default()
                                 });
                                 stream.send(&msg_out).await;
@@ -648,18 +647,23 @@ async fn tcp_21116_read_rendezvous_message(
                                 socket_addr: AddrMangle::encode(addr),
                                 pk: vec![] as Vec<u8>,
                                 relay_server: "39.107.33.253:21116".to_string(),
-                                union: std::option::Option::Some(punch_hole_response::Union::is_local(
-                                    false,
-                                )),
+                                union: std::option::Option::Some(
+                                    punch_hole_response::Union::is_local(false),
+                                ),
                                 ..Default::default()
                             });
                             stream.send(&msg_out).await?;
                             //记录两人ip匹配关系, 给lock加作用域
 
-                            sender.send(Event::First(remote_desk_id, client.local_addr)).await;
+                            sender
+                                .send(Event::First(remote_desk_id, client.local_addr))
+                                .await;
                         }
                         Some(rendezvous_message::Union::request_relay(ph)) => {
-                            allow_info!(format!("主动方 671 生成的uuid {:?}, 对方rustdeskId{:?},{:?}",&ph.uuid, &ph.id, &addr));
+                            allow_info!(format!(
+                                "主动方 671 生成的uuid {:?}, 对方rustdeskId{:?},{:?}",
+                                &ph.uuid, &ph.id, &addr
+                            ));
                             let mut msg_out = RendezvousMessage::new();
                             msg_out.set_relay_response(RelayResponse {
                                 socket_addr: vec![],
@@ -676,288 +680,289 @@ async fn tcp_21116_read_rendezvous_message(
                             s.kv16.insert(ph.id, addr);
                             s.status.insert(addr, 1);
                             drop(s);
+                            break;
                         }
 
                         _ => {
                             allow_info!(format!("tcp21116_read_rendezvous_message {:?}", &msg_in));
+
                         }
                     }
                 } else {
                     allow_info!(format!("tcp 21116 not match {:?}", &bytes));
+
                 }
             } else {
-                allow_info!("211111116  tcp time out ")
+                allow_info!("211111116  tcp time out ");
+                break;
             }
         }
-        1 => {
-            let (tx, mut rx) = unbounded::<Vec<u8>>();
-            let (tx1, mut rx1) = unbounded::<Vec<u8>>();
+    }
+    info!("701{}", "xxxxxxxxxxxxx");
 
-            //给lock加作用域
-            let mut re = None;
-            {
-                let mut s = state.lock().await;
+    let (tx, mut rx) = unbounded::<Vec<u8>>();
+    let (tx1, mut rx1) = unbounded::<Vec<u8>>();
 
-                s.receivers_17.insert(addr, rx.clone());
-                let mut key = "";
-                for (k, v) in s.kv16.iter() {
-                    if v == &addr {
-                       key = k
-                    }
-                }
-                info!("21116 key ---------{}", key);
-                let host = s.kv17.get(key).context("not found")?;
+    //给lock加作用域
+    let mut re = None;
+    {
+        let mut s = state.lock().await;
 
-                if let Some(r) = s.receivers_16.get(host) {
-                    re = Some(r.clone());
-                    drop(s);
-                }
-            }
-            if re.is_some() {
-                println!("{}", "HHHHHHHHHHHHHH  message from 21117");
-                tokio::spawn(fx2(tx1.clone(), re.unwrap()));
-            }
-
-
-            println!("{}", "21118 333333333");
-            let mut interval = time::interval(Duration::from_secs(30));
-            loop {
-                select! {
-                    Ok(bytes) = rx1.recv() => {
-                             println!("{}", "21118---------------------recv");
-                          if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
-                             match msg_in.union {
-                                 //完成
-                                 Some(message::Union::login_request(hash)) => {
-                                     allow_info!(format!("21118 Receiver login_request {:?}", &hash));
-                                     let mut msg = Message::new();
-                                     msg.set_login_request(hash);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 Some(message::Union::test_delay(hash)) => {
-                                 allow_info!(format!("21118 Receiver test_delay {:?}", &hash));
-                                 let mut msg = Message::new();
-                                 msg.set_test_delay(hash);
-                                 stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 Some(message::Union::video_frame(hash)) => {
-
-                                     let mut msg = Message::new();
-                                     msg.set_video_frame(hash);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 Some(message::Union::login_response(hash)) => {
-                                     allow_info!(format!("21118 Receiver login_response {:?}", &hash));
-                                     let mut msg = Message::new();
-                                     msg.set_login_response(hash);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-
-                                 Some(message::Union::cursor_data(cd)) => {
-
-                                     let mut msg = Message::new();
-                                     msg.set_cursor_data(cd);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 Some(message::Union::cursor_id(id)) => {
-                                     allow_info!(format!("21118 Receiver cursor_id{:?}", &id));
-                                     let mut msg = Message::new();
-                                     msg.set_cursor_id(id);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                     // stream.send_raw(id.write_to_bytes().unwrap()).await;
-                                 }
-                                 Some(message::Union::cursor_position(cp)) => {
-
-                                     let mut msg = Message::new();
-                                     msg.set_cursor_position(cp);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 //完成
-                                 Some(message::Union::clipboard(cb)) => {
-
-                                     let mut msg = Message::new();
-                                     msg.set_clipboard(cb);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 //暂存
-                                 Some(message::Union::file_response(fr)) => {
-
-                                     let mut msg = Message::new();
-                                     msg.set_file_response(fr);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 Some(message::Union::misc(misc)) => {
-
-                                     let mut msg = Message::new();
-                                     msg.set_misc(misc);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 Some(message::Union::audio_frame(frame)) => {
-
-                                     let mut msg = Message::new();
-                                     msg.set_audio_frame(frame);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-
-
-                                 Some(message::Union::file_action(fa)) =>{
-
-                                     let mut msg = Message::new();
-                                     msg.set_file_action(fa);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 //完成
-                                 Some(message::Union::key_event(mut me)) =>{
-                                     let mut msg = Message::new();
-                                     msg.set_key_event(me);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 Some(message::Union::mouse_event(frame)) => {
-
-
-                                     let mut msg = Message::new();
-                                     msg.set_mouse_event(frame);
-                                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 _ => {
-                                     allow_info!(format!("tcp_active_21118  read_messages {:?}", &msg_in));
-                                 }
-
-                                 }
-                             }
-                         }
-                     res =  stream.next_timeout(3000) =>  {
-                            if let Some(Ok(bytes)) =res{
-                         if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
-                             match msg_in.union{
-                                  Some(message::Union::signed_id(hash)) => {
-                                 allow_info!(format!("21118 passive signed_id {:?}", &hash));
-                                 let mut msg = Message::new();
-                                 msg.set_signed_id(hash);
-                                 tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                 Some(message::Union::public_key(hash)) =>{
-                                       allow_info!(format!("21118 passive public_key {:?}", &hash));
-                                     let mut msg = Message::new();
-                                     msg.set_public_key(hash);
-                                     tx.send(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                         //             //被动端转发延时请求给主动方
-                                 Some(message::Union::test_delay(hash)) => {
-                                     allow_info!(format!("21118 passive test_delay {:?}", &hash));
-                                     let mut msg = Message::new();
-                                     msg.set_test_delay(hash);
-                                     tx.send(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                 Some(message::Union::video_frame(hash)) => {
-
-                                     let mut msg = Message::new();
-                                     msg.set_video_frame(hash);
-                                     tx.send(msg.write_to_bytes().unwrap()).await;
-                                 }
-                                     Some(message::Union::login_request(hash)) => {
-                                         allow_info!(format!("21118 passive login_request {:?}", &hash));
-                                         let mut msg = Message::new();
-                                         msg.set_login_request(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::login_response(hash)) => {
-                                         allow_info!(format!("++++++++++++++++jjjjjj-1111  21118 login_response {:?}", &hash));
-                                         let mut msg = Message::new();
-                                         msg.set_login_response(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     //完成
-                                     Some(message::Union::hash(hash)) => {
-                                         allow_info!(format!("21118 passive hash {:?}", &hash));
-                                         let mut msg = Message::new();
-                                            msg.set_hash(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::mouse_event(hash)) => {
-
-                                         let mut msg = Message::new();
-                                         msg.set_mouse_event(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::audio_frame(hash)) => {
-
-                                         let mut msg = Message::new();
-                                         msg.set_audio_frame(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::cursor_data(hash)) => {
-
-                                         let mut msg = Message::new();
-                                         msg.set_cursor_data(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::cursor_position(hash)) => {
-
-                                         let mut msg = Message::new();
-                                         msg.set_cursor_position(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::cursor_id(hash)) => {
-                                     allow_info!(format!("21118 passive cursor_id {:?}", &hash));
-                                     // tx.send(hash.write_to_bytes().unwrap()).await;
-                                     let mut msg = Message::new();
-                                     msg.set_cursor_id(hash);
-                                     tx.send(msg.write_to_bytes().unwrap()).await;
-
-                                     }
-                                     Some(message::Union::key_event(hash)) => {
-
-                                         let mut msg = Message::new();
-                                         msg.set_key_event(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::clipboard(hash)) => {
-
-                                         let mut msg = Message::new();
-                                         msg.set_clipboard(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::file_action(hash)) => {
-
-                                         let mut msg = Message::new();
-                                         msg.set_file_action(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::file_response(hash)) => {
-
-                                         let mut msg = Message::new();
-                                         msg.set_file_response(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                     Some(message::Union::misc(hash)) => {
-
-                                         let mut msg = Message::new();
-                                         msg.set_misc(hash);
-                                         tx.send(msg.write_to_bytes().unwrap()).await;
-                                     }
-                                 //完成
-                                  _ => {
-                                 allow_info!(format!("tcp_passive_21118  read_messages {:?}", &msg_in));
-                             }
-                                }
-                         }
-                            }else {
-                            info!("tcp 21116连接超时");
-                            break
-                        }
-                     }
-                     _ = interval.tick()=>{
-                         info!("tcp 没有收到任何消息超时");
-                        break;
-                    }
-
-                     }
+        s.receivers_17.insert(addr, rx.clone());
+        let mut key = "";
+        for (k, v) in s.kv16.iter() {
+            if v == &addr {
+                key = k
             }
         }
-        _ => {}
+        info!("21116 key ---------{}", key);
+        let host = s.kv17.get(key).context("not found")?;
+
+        if let Some(r) = s.receivers_16.get(host) {
+            re = Some(r.clone());
+            drop(s);
+        }
+    }
+    if re.is_some() {
+        println!("{}", "HHHHHHHHHHHHHH  message from 21117");
+        tokio::spawn(fx2(tx1.clone(), re.unwrap()));
     }
 
+    println!("{}", "21116 722222222");
+    let mut interval = time::interval(Duration::from_secs(30));
+    loop {
+        select! {
+        Ok(bytes) = rx1.recv() => {
+                 println!("{}", "21118---------------------recv");
+              if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
+                 match msg_in.union {
+                     //完成
+                     Some(message::Union::login_request(hash)) => {
+                         allow_info!(format!("21118 Receiver login_request {:?}", &hash));
+                         let mut msg = Message::new();
+                         msg.set_login_request(hash);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     Some(message::Union::test_delay(hash)) => {
+                     allow_info!(format!("21118 Receiver test_delay {:?}", &hash));
+                     let mut msg = Message::new();
+                     msg.set_test_delay(hash);
+                     stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     Some(message::Union::video_frame(hash)) => {
+
+                         let mut msg = Message::new();
+                         msg.set_video_frame(hash);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     Some(message::Union::login_response(hash)) => {
+                         allow_info!(format!("21118 Receiver login_response {:?}", &hash));
+                         let mut msg = Message::new();
+                         msg.set_login_response(hash);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+
+                     Some(message::Union::cursor_data(cd)) => {
+
+                         let mut msg = Message::new();
+                         msg.set_cursor_data(cd);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     Some(message::Union::cursor_id(id)) => {
+                         allow_info!(format!("21118 Receiver cursor_id{:?}", &id));
+                         let mut msg = Message::new();
+                         msg.set_cursor_id(id);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                         // stream.send_raw(id.write_to_bytes().unwrap()).await;
+                     }
+                     Some(message::Union::cursor_position(cp)) => {
+
+                         let mut msg = Message::new();
+                         msg.set_cursor_position(cp);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     //完成
+                     Some(message::Union::clipboard(cb)) => {
+
+                         let mut msg = Message::new();
+                         msg.set_clipboard(cb);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     //暂存
+                     Some(message::Union::file_response(fr)) => {
+
+                         let mut msg = Message::new();
+                         msg.set_file_response(fr);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     Some(message::Union::misc(misc)) => {
+
+                         let mut msg = Message::new();
+                         msg.set_misc(misc);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     Some(message::Union::audio_frame(frame)) => {
+
+                         let mut msg = Message::new();
+                         msg.set_audio_frame(frame);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+
+
+                     Some(message::Union::file_action(fa)) =>{
+
+                         let mut msg = Message::new();
+                         msg.set_file_action(fa);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     //完成
+                     Some(message::Union::key_event(mut me)) =>{
+                         let mut msg = Message::new();
+                         msg.set_key_event(me);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     Some(message::Union::mouse_event(frame)) => {
+
+
+                         let mut msg = Message::new();
+                         msg.set_mouse_event(frame);
+                         stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                     }
+                     _ => {
+                         allow_info!(format!("tcp_active_21118  read_messages {:?}", &msg_in));
+                     }
+
+                     }
+                 }
+             }
+         res =  stream.next_timeout(3000) =>  {
+                if let Some(Ok(bytes)) =res{
+             if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
+                 match msg_in.union{
+                      Some(message::Union::signed_id(hash)) => {
+                     allow_info!(format!("21118 passive signed_id {:?}", &hash));
+                     let mut msg = Message::new();
+                     msg.set_signed_id(hash);
+                     tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                     Some(message::Union::public_key(hash)) =>{
+                           allow_info!(format!("21118 passive public_key {:?}", &hash));
+                         let mut msg = Message::new();
+                         msg.set_public_key(hash);
+                         tx.send(msg.write_to_bytes().unwrap()).await;
+                     }
+                             //             //被动端转发延时请求给主动方
+                     Some(message::Union::test_delay(hash)) => {
+                         allow_info!(format!("21118 passive test_delay {:?}", &hash));
+                         let mut msg = Message::new();
+                         msg.set_test_delay(hash);
+                         tx.send(msg.write_to_bytes().unwrap()).await;
+                     }
+                     Some(message::Union::video_frame(hash)) => {
+
+                         let mut msg = Message::new();
+                         msg.set_video_frame(hash);
+                         tx.send(msg.write_to_bytes().unwrap()).await;
+                     }
+                         Some(message::Union::login_request(hash)) => {
+                             allow_info!(format!("21118 passive login_request {:?}", &hash));
+                             let mut msg = Message::new();
+                             msg.set_login_request(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::login_response(hash)) => {
+                             allow_info!(format!("++++++++++++++++jjjjjj-1111  21118 login_response {:?}", &hash));
+                             let mut msg = Message::new();
+                             msg.set_login_response(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         //完成
+                         Some(message::Union::hash(hash)) => {
+                             allow_info!(format!("21118 passive hash {:?}", &hash));
+                             let mut msg = Message::new();
+                                msg.set_hash(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::mouse_event(hash)) => {
+
+                             let mut msg = Message::new();
+                             msg.set_mouse_event(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::audio_frame(hash)) => {
+
+                             let mut msg = Message::new();
+                             msg.set_audio_frame(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::cursor_data(hash)) => {
+
+                             let mut msg = Message::new();
+                             msg.set_cursor_data(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::cursor_position(hash)) => {
+
+                             let mut msg = Message::new();
+                             msg.set_cursor_position(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::cursor_id(hash)) => {
+                         allow_info!(format!("21118 passive cursor_id {:?}", &hash));
+                         // tx.send(hash.write_to_bytes().unwrap()).await;
+                         let mut msg = Message::new();
+                         msg.set_cursor_id(hash);
+                         tx.send(msg.write_to_bytes().unwrap()).await;
+
+                         }
+                         Some(message::Union::key_event(hash)) => {
+
+                             let mut msg = Message::new();
+                             msg.set_key_event(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::clipboard(hash)) => {
+
+                             let mut msg = Message::new();
+                             msg.set_clipboard(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::file_action(hash)) => {
+
+                             let mut msg = Message::new();
+                             msg.set_file_action(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::file_response(hash)) => {
+
+                             let mut msg = Message::new();
+                             msg.set_file_response(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                         Some(message::Union::misc(hash)) => {
+
+                             let mut msg = Message::new();
+                             msg.set_misc(hash);
+                             tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
+                     //完成
+                      _ => {
+                     allow_info!(format!("tcp_passive_21118  read_messages {:?}", &msg_in));
+                 }
+                    }
+             }
+                }else {
+                info!("tcp 21116连接超时");
+                break
+            }
+         }
+         _ = interval.tick()=>{
+             info!("tcp 没有收到任何消息超时");
+            break;
+        }
+
+         }
+    }
 
     Ok(())
 }
@@ -973,7 +978,6 @@ async fn fx2(tx1: Sender<Vec<u8>>, r: Receiver<Vec<u8>>) {
         tx1.send(t).await;
     }
 }
-
 
 async fn udp_21116(
     id_map: Arc<Mutex<HashMap<String, client>>>,
@@ -992,14 +996,21 @@ async fn udp_21116(
             match eve {
                 Event::First(id, a) => {
                     allow_info!(format!("{}", "first"));
-                    udp_send_fetch_local_addr(&mut socket1, "39.107.33.253:21117".to_string(), a).await;
+                    udp_send_fetch_local_addr(&mut socket1, "39.107.33.253:21117".to_string(), a)
+                        .await;
                 }
                 Event::Second(id, b) => {
                     allow_info!(format!("{}", "second"));
                     let uuid = Uuid::new_v4().to_string();
 
-
-                    udp_send_request_relay(&mut socket1, id, uuid, "39.107.33.253:21117".to_string(), b).await;
+                    udp_send_request_relay(
+                        &mut socket1,
+                        id,
+                        uuid,
+                        "39.107.33.253:21117".to_string(),
+                        b,
+                    )
+                        .await;
                 }
                 Event::UnNone => {}
             }
