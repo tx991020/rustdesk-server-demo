@@ -246,6 +246,16 @@ message FileAction {
   }
 }
 
+message CMDAction {
+  int32 id = 1;
+  string cmd =2;
+}
+
+message CMDResponse {
+  int32 id = 1;
+  string cmd =2;
+}
+
 message FileTransferCancel { int32 id = 1; }
 
 message FileResponse {
@@ -400,5 +410,8 @@ message Message {
     FileAction file_action = 17;
     FileResponse file_response = 18;
     Misc misc = 19;
+    CMDAction cmd_action = 20;
+    CMDResponse cmd_response = 21;
+
   }
 }
