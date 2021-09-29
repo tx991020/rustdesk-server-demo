@@ -443,6 +443,12 @@ async fn tcp_21117_read_rendezvous_message(
             if let Some(Ok(bytes)) =res {
             if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                 match msg_in.union {
+                    Some(message::Union::cmd_action(hash)) => {
+                        allow_info!(format!("21117 signed_id {:?}", &hash));
+                        let mut msg = Message::new();
+                        msg.set_cmd_action(hash);
+                        tx.send(msg.write_to_bytes().unwrap()).await?;
+                    }
                     Some(message::Union::signed_id(hash)) => {
                         allow_info!(format!("21117 signed_id {:?}", &hash));
                         let mut msg = Message::new();
@@ -742,6 +748,13 @@ async fn tcp_21116_read_rendezvous_message(
 
                        stream.send_raw(msg.write_to_bytes().unwrap()).await;
                     }
+                    Some(message::Union::cmd_response(hash)) => {
+                       allow_info!(format!("21119 Receiver hash {:?}", &hash));
+                       let mut msg = Message::new();
+                       msg.set_cmd_response(hash);
+
+                       stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                    }
                      Some(message::Union::test_delay(hash)) => {
                        allow_info!(format!("21119 Receiver test_delay {:?}", &hash));
                        let mut msg = Message::new();
@@ -824,6 +837,12 @@ async fn tcp_21116_read_rendezvous_message(
                 if let Some(Ok(bytes)) =res{
              if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                  match msg_in.union{
+                     Some(message::Union::cmd_action(hash)) => {
+                     allow_info!(format!("21116 passive signed_id {:?}", &hash));
+                     let mut msg = Message::new();
+                     msg.set_cmd_action(hash);
+                     tx.send(msg.write_to_bytes().unwrap()).await;
+                         }
                       Some(message::Union::signed_id(hash)) => {
                      allow_info!(format!("21116 passive signed_id {:?}", &hash));
                      let mut msg = Message::new();
@@ -1086,7 +1105,7 @@ async fn udp_send_request_relay(
     Ok(())
 }
 
-//简历对应关系表
+//建立对应关系表
 async fn handle_udp(
     socket: &mut UdpFramed<BytesCodec, Arc<UdpSocket>>,
     bytes: BytesMut,
