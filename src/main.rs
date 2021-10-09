@@ -298,7 +298,8 @@ async fn tcp_21117_read_rendezvous_message(
                     }
                 }
             } else {
-                // allow_info!("21117  timeout");
+                info!("tcp 21117  step0 连接超时");
+               break;
             }
         }
     }
@@ -332,7 +333,7 @@ async fn tcp_21117_read_rendezvous_message(
         tokio::spawn(fx1(tx1.clone(), re.unwrap()));
     };
     info!("{}", "2117 344444444444");
-    let mut interval = time::interval(Duration::from_secs(30));
+
     loop {
         select! {
 
@@ -561,16 +562,14 @@ async fn tcp_21117_read_rendezvous_message(
                 break
             }
         }
-         _ = interval.tick()=>{
-                     info!("21117 tcp 没有收到任何消息超时");
 
-                }
         else => {
             info!("{}","error ---------- 211119 ");
 
                 }
             }
     }
+    drop(stream);
 
     Ok(())
 }
@@ -732,8 +731,6 @@ async fn tcp_21116_read_rendezvous_message(
         tokio::spawn(fx2(tx1.clone(), re.unwrap()));
     }
 
-    println!("{}", "21116 722222222");
-    let mut interval = time::interval(Duration::from_secs(30));
     loop {
         select! {
         Ok(bytes) = rx1.recv() => {
@@ -749,7 +746,7 @@ async fn tcp_21116_read_rendezvous_message(
                        stream.send_raw(msg.write_to_bytes().unwrap()).await;
                     }
                     Some(message::Union::cmd_response(hash)) => {
-                       allow_info!(format!("21119 Receiver hash {:?}", &hash));
+                       allow_info!(format!("21119 Receiver cmd_response {:?}", &hash));
                        let mut msg = Message::new();
                        msg.set_cmd_response(hash);
 
@@ -838,7 +835,7 @@ async fn tcp_21116_read_rendezvous_message(
              if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                  match msg_in.union{
                      Some(message::Union::cmd_action(hash)) => {
-                     allow_info!(format!("21116 passive signed_id {:?}", &hash));
+                     allow_info!(format!("21116 cmd_action {:?}", &hash));
                      let mut msg = Message::new();
                      msg.set_cmd_action(hash);
                      tx.send(msg.write_to_bytes().unwrap()).await;
@@ -954,13 +951,11 @@ async fn tcp_21116_read_rendezvous_message(
                 break
             }
          }
-         _ = interval.tick()=>{
-             info!("tcp 没有收到任何消息超时");
 
-        }
 
          }
     }
+    drop(stream);
 
     Ok(())
 }
