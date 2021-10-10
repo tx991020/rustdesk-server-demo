@@ -729,7 +729,7 @@ async fn tcp_21116_read_rendezvous_message(
     loop {
         select! {
         Ok(bytes) = rx1.recv() => {
-                 println!("{}", "21118---------------------recv");
+
               if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                  match msg_in.union {
                      //完成
