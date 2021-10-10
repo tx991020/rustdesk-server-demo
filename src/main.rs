@@ -49,6 +49,7 @@ use std::collections::HashMap;
 use std::io::Error;
 use std::sync::Arc;
 use tracing_subscriber;
+use smol::Timer;
 
 /// Shorthand for the transmit half of the message channel.
 type Tx = Sender<Vec<u8>>;
@@ -562,12 +563,12 @@ async fn tcp_21117_read_rendezvous_message(
                 break
             }
         }
-
-        else => {
-            info!("{}","error ---------- 211119 ");
-
-                }
+         _ = Timer::after(Duration::from_secs(5)) => {
+               info!("ticker 21117连接超时");
+                break;
             }
+
+
     }
     info!("drop stream  21117");
     drop(stream);
@@ -952,6 +953,10 @@ async fn tcp_21116_read_rendezvous_message(
                 break
             }
          }
+         _ = Timer::after(Duration::from_secs(5)) =>{
+                info!(" ticker 21116连接超时");
+                break;
+            }
 
 
          }
