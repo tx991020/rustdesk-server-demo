@@ -1,5 +1,3 @@
-#![feature(map_first_last)]
-
 use crate::tokio::select;
 use crate::tokio::signal::ctrl_c;
 use crate::tokio::time::interval;
@@ -43,13 +41,13 @@ use hbb_common::tokio::sync::mpsc::UnboundedSender;
 use hbb_common::tokio::task::JoinHandle;
 use hbb_common::tokio_util::codec::{BytesCodec, Framed};
 use hbb_common::tokio_util::udp::UdpFramed;
+use smol::Timer;
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Error;
 use std::sync::Arc;
 use tracing_subscriber;
-use smol::Timer;
 
 /// Shorthand for the transmit half of the message channel.
 type Tx = Sender<Vec<u8>>;
@@ -119,7 +117,6 @@ async fn main() -> Result<()> {
     //     .init();
     tracing_subscriber::fmt::init();
 
-
     let (ip_sender, mut ip_rcv) = async_channel::unbounded::<Event>();
 
     let mut id_map: Arc<Mutex<HashMap<String, client>>> = Arc::new(Mutex::new(HashMap::new()));
@@ -139,7 +136,6 @@ async fn main() -> Result<()> {
         state.clone(),
         ip_sender.clone(),
     ));
-
 
     ctrl_c().await?;
     Ok(())
@@ -300,7 +296,7 @@ async fn tcp_21117_read_rendezvous_message(
                 }
             } else {
                 info!("tcp 21117  step0 连接超时");
-               break;
+                break;
             }
         }
     }
@@ -312,7 +308,6 @@ async fn tcp_21117_read_rendezvous_message(
     let mut re = None;
     {
         let mut s = state.lock().await;
-
 
         println!("21117 1111111111{:?},{:#?},{:#?}", &addr, s.kv16, s.kv17);
 
@@ -560,7 +555,7 @@ async fn tcp_21117_read_rendezvous_message(
             }
                 }else {
                 info!("tcp 21117连接超时");
-                break
+                break;
             }
         }
          _ = Timer::after(Duration::from_secs(5)) => {
@@ -569,14 +564,13 @@ async fn tcp_21117_read_rendezvous_message(
             }
 
 
+        }
     }
     info!("drop stream  21117");
     drop(stream);
 
     Ok(())
 }
-
-
 
 async fn tcp_21116_read_rendezvous_message(
     mut stream: TcpStream,
@@ -704,7 +698,6 @@ async fn tcp_21116_read_rendezvous_message(
     }
     sleep(2 as f32).await;
     info!("701{}", "xxxxxxxxxxxxx");
-
 
     let (tx1, mut rx1) = unbounded::<Vec<u8>>();
 
@@ -1010,7 +1003,7 @@ async fn udp_21116(
                         "39.107.33.253:21117".to_string(),
                         b,
                     )
-                        .await;
+                    .await;
                 }
                 Event::UnNone => {}
             }

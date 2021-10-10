@@ -1,15 +1,12 @@
-
 use std::env;
 
 use futures::{future, pin_mut, StreamExt};
 
-
+use async_tungstenite::tokio::connect_async;
 use async_tungstenite::tokio::connect_async;
 use async_tungstenite::tungstenite::protocol::Message;
-use async_tungstenite::tokio::connect_async;
 use hbb_common::futures_util::task;
 use hbb_common::tokio::signal::unix::io;
-
 
 async fn run() {
     let connect_addr = env::args()

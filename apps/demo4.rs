@@ -1,18 +1,18 @@
-
-
 #[cfg(test)]
 mod tests {
     use hbb_common::tokio::select;
 
-
     use hbb_common::anyhow::Context;
     use hbb_common::config::{Config, RENDEZVOUS_TIMEOUT};
-    use hbb_common::protobuf::{ProtobufEnum, Message};
-    use hbb_common::{to_socket_addr, ResultType, AddrMangle};
-    use std::net::{SocketAddr, ToSocketAddrs};
-    use hbb_common::udp::FramedSocket;
-    use hbb_common::rendezvous_proto::{RendezvousMessage, RegisterPk, RegisterPeer, PunchHoleRequest, RequestRelay, LocalAddr, RelayResponse, TestNatRequest};
+    use hbb_common::protobuf::{Message, ProtobufEnum};
+    use hbb_common::rendezvous_proto::{
+        LocalAddr, PunchHoleRequest, RegisterPeer, RegisterPk, RelayResponse, RendezvousMessage,
+        RequestRelay, TestNatRequest,
+    };
     use hbb_common::tcp::FramedStream;
+    use hbb_common::udp::FramedSocket;
+    use hbb_common::{to_socket_addr, AddrMangle, ResultType};
+    use std::net::{SocketAddr, ToSocketAddrs};
     use uuid::Uuid;
 
     // pub fn to_socket_addr(host: &str) -> ResultType<SocketAddr> {
@@ -73,8 +73,8 @@ mod tests {
             Config::get_any_listen_addr(),
             RENDEZVOUS_TIMEOUT,
         )
-            .await
-            .with_context(|| "Failed to connect to rendezvous server")?;
+        .await
+        .with_context(|| "Failed to connect to rendezvous server")?;
         let mut msg_out = RendezvousMessage::new();
         msg_out.set_punch_hole_request(PunchHoleRequest {
             //远程rust_desk_id
@@ -104,8 +104,8 @@ mod tests {
             Config::get_any_listen_addr(),
             RENDEZVOUS_TIMEOUT,
         )
-            .await
-            .with_context(|| "Failed to connect to rendezvous server")?;
+        .await
+        .with_context(|| "Failed to connect to rendezvous server")?;
         let mut msg_out = RendezvousMessage::new();
         let uuid = Uuid::new_v4().to_string();
         msg_out.set_request_relay(RequestRelay {
@@ -128,8 +128,8 @@ mod tests {
             Config::get_any_listen_addr(),
             RENDEZVOUS_TIMEOUT,
         )
-            .await
-            .with_context(|| "Failed to connect to rendezvous server")?;
+        .await
+        .with_context(|| "Failed to connect to rendezvous server")?;
         let mut msg_out = RendezvousMessage::new();
         let uuid = Uuid::new_v4().to_string();
         msg_out.set_request_relay(RequestRelay {
@@ -153,8 +153,8 @@ mod tests {
             Config::get_any_listen_addr(),
             RENDEZVOUS_TIMEOUT,
         )
-            .await
-            .with_context(|| "Failed to connect to rendezvous server")?;
+        .await
+        .with_context(|| "Failed to connect to rendezvous server")?;
         let mut msg_out = RendezvousMessage::new();
         let local_addr = stream.get_ref().local_addr()?;
         msg_out.set_local_addr(LocalAddr {
@@ -181,8 +181,8 @@ mod tests {
             Config::get_any_listen_addr(),
             RENDEZVOUS_TIMEOUT,
         )
-            .await
-            .with_context(|| "Failed to connect to rendezvous server")?;
+        .await
+        .with_context(|| "Failed to connect to rendezvous server")?;
         let vec = AddrMangle::encode(to_socket_addr("0.0.0.0:0").unwrap());
         let mut msg_out = RendezvousMessage::new();
         let mut rr = RelayResponse {
@@ -204,8 +204,8 @@ mod tests {
             Config::get_any_listen_addr(),
             RENDEZVOUS_TIMEOUT,
         )
-            .await
-            .with_context(|| "Failed to connect to rendezvous server")?;
+        .await
+        .with_context(|| "Failed to connect to rendezvous server")?;
         let vec = AddrMangle::encode(to_socket_addr("0.0.0.0:0").unwrap());
         let mut msg_out = RendezvousMessage::new();
         msg_out.set_request_relay(RequestRelay {

@@ -1,13 +1,10 @@
-
-
-
-use std::{io, net::SocketAddr, sync::Arc};
 use hbb_common::tokio::net::UdpSocket;
+use std::{io, net::SocketAddr, sync::Arc};
 
-use hbb_common::tokio;
 use hbb_common::futures::SinkExt;
-use hbb_common::tokio::sync::mpsc;
+use hbb_common::tokio;
 use hbb_common::tokio::io::AsyncBufReadExt;
+use hbb_common::tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {

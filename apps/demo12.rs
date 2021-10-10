@@ -1,6 +1,3 @@
-
-
-
 use std::{
     collections::HashMap,
     env,
@@ -96,6 +93,6 @@ async fn run() -> Result<(), IoError> {
 }
 
 #[tokio::main]
-async fn main() ->Result<(), IoError> {
+async fn main() -> Result<(), IoError> {
     run().await;
 }

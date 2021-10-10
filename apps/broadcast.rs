@@ -1,5 +1,3 @@
-
-
 use std::{
     collections::HashMap,
     env,
@@ -11,15 +9,14 @@ use std::{
 use futures_channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 
-
-use tungstenite::protocol::Message;
-use hbb_common::tokio::net::{TcpListener, TcpStream};
+use hbb_common::futures::channel::mpsc::unbounded;
+use hbb_common::futures::{future, StreamExt};
+use hbb_common::futures_util::TryStreamExt;
 use hbb_common::tokio;
+use hbb_common::tokio::net::{TcpListener, TcpStream};
 use hbb_common::tokio::sync::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::Message;
-use hbb_common::futures::channel::mpsc::unbounded;
-use hbb_common::futures_util::TryStreamExt;
-use hbb_common::futures::{future, StreamExt};
+use tungstenite::protocol::Message;
 
 type Tx = UnboundedSender<Message>;
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
@@ -39,12 +36,18 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
     let (outgoing, incoming) = ws_stream.split();
 
     let broadcast_incoming = incoming.try_for_each(|msg| {
-        println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
+        println!(
+            "Received a message from {}: {}",
+            addr,
+            msg.to_text().unwrap()
+        );
         let peers = peer_map.lock().unwrap();
 
         // We want to broadcast the message to everyone except ourselves.
-        let broadcast_recipients =
-            peers.iter().filter(|(peer_addr, _)| peer_addr != &&addr).map(|(_, ws_sink)| ws_sink);
+        let broadcast_recipients = peers
+            .iter()
+            .filter(|(peer_addr, _)| peer_addr != &&addr)
+            .map(|(_, ws_sink)| ws_sink);
 
         for recp in broadcast_recipients {
             recp.unbounded_send(msg.clone()).unwrap();
@@ -64,7 +67,9 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
 
 #[tokio::main]
 async fn main() -> Result<(), IoError> {
-    let addr = env::args().nth(1).unwrap_or_else(|| "127.0.0.1:8080".to_string());
+    let addr = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "127.0.0.1:8080".to_string());
 
     let state = PeerMap::new(Mutex::new(HashMap::new()));
 

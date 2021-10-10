@@ -1,13 +1,9 @@
-
-
-
-
-use std::env;
-use std::error::Error;
-use hbb_common::tokio::net::{TcpListener, TcpStream};
 use hbb_common::tokio;
 use hbb_common::tokio::io;
 use hbb_common::tokio::io::AsyncWriteExt;
+use hbb_common::tokio::net::{TcpListener, TcpStream};
+use std::env;
+use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -35,9 +31,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-
-
-
 
 async fn transfer(mut inbound: TcpStream, proxy_addr: String) -> Result<(), Box<dyn Error>> {
     let mut outbound = TcpStream::connect(proxy_addr).await?;

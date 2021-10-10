@@ -3,6 +3,7 @@ use bytes::BytesMut;
 use futures::{SinkExt, StreamExt};
 use protobuf::Message;
 use socket2::{Domain, Socket, Type};
+use std::sync::Arc;
 use std::{
     io::Error,
     net::SocketAddr,
@@ -10,7 +11,6 @@ use std::{
 };
 use tokio::{net::ToSocketAddrs, net::UdpSocket};
 use tokio_util::{codec::BytesCodec, udp::UdpFramed};
-use std::sync::Arc;
 
 pub struct FramedSocket(UdpFramed<BytesCodec>);
 
@@ -22,13 +22,11 @@ impl Deref for FramedSocket {
     }
 }
 
-
 impl DerefMut for FramedSocket {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
-
 
 fn new_socket(addr: SocketAddr, reuse: bool) -> Result<Socket, std::io::Error> {
     let socket = match addr {
@@ -46,8 +44,6 @@ fn new_socket(addr: SocketAddr, reuse: bool) -> Result<Socket, std::io::Error> {
     socket.bind(&addr.into())?;
     Ok(socket)
 }
-
-
 
 impl FramedSocket {
     pub async fn new<T: ToSocketAddrs>(addr: T) -> ResultType<Self> {

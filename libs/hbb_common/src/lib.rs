@@ -54,20 +54,17 @@ macro_rules! allow_err {
     };
 }
 
-
 #[macro_export]
 macro_rules! allow_info {
     ($e:expr) => {
-
-            log::info!(
-                "{:?}, {}:{}:{}:{}",
-                $e,
-                module_path!(),
-                file!(),
-                line!(),
-                column!()
-            );
-
+        log::info!(
+            "{:?}, {}:{}:{}:{}",
+            $e,
+            module_path!(),
+            file!(),
+            line!(),
+            column!()
+        );
     };
 }
 
