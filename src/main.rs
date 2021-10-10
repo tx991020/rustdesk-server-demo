@@ -311,7 +311,7 @@ async fn tcp_21117_read_rendezvous_message(
     let mut re = None;
     {
         let mut s = state.lock().await;
-        println!("21117 CCCCCCCCC{:?}", &addr);
+
 
         println!("21117 1111111111{:?},{:#?},{:#?}", &addr, s.kv16, s.kv17);
 
@@ -569,6 +569,7 @@ async fn tcp_21117_read_rendezvous_message(
                 }
             }
     }
+    info!("drop stream  21117");
     drop(stream);
 
     Ok(())
@@ -955,6 +956,7 @@ async fn tcp_21116_read_rendezvous_message(
 
          }
     }
+    info!("drop stream  21116");
     drop(stream);
 
     Ok(())

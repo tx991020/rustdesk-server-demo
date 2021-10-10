@@ -110,5 +110,6 @@ async fn read_messages(mut stream: TcpStream) -> Result<()> {
             info!("not match {:?}",&bytes);
         }
     }
+    drop(stream);
     Ok(())
 }
