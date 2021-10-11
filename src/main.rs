@@ -226,8 +226,8 @@ async fn tcp_21117_read_rendezvous_message(
     println!("fffffffffff 248  step {},{:?}", step, addr);
 
     let (tx, mut rx) = unbounded::<Vec<u8>>();
-    loop {
-        if step == 0 {
+    if step == 0 {
+        loop {
             if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
                 if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
                     match msg_in.union {
@@ -298,6 +298,7 @@ async fn tcp_21117_read_rendezvous_message(
                 info!("tcp 21117  step0 连接超时");
                 break;
             }
+
         }
     }
     sleep(2 as f32).await;
@@ -590,9 +591,10 @@ async fn tcp_21116_read_rendezvous_message(
 
     println!("gggggggggg 596  step {}, addr {:?}", step, addr);
     let (tx, mut rx) = unbounded::<Vec<u8>>();
-    loop {
-        if step == 0 {
-            if let Some(Ok(bytes)) = stream.next_timeout(30000).await {
+    if step ==0 {
+        loop {
+
+            if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
                 if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
                     match msg_in.union {
                         Some(rendezvous_message::Union::relay_response(ph)) => {
@@ -637,7 +639,8 @@ async fn tcp_21116_read_rendezvous_message(
                                     ..Default::default()
                                 });
                                 stream.send(&msg_out).await;
-                                return Err(anyhow!("对方不在线"));
+                                info!("{}", "640 对方不在线");
+                                break;
                             }
 
                             let client = client?;
@@ -692,10 +695,15 @@ async fn tcp_21116_read_rendezvous_message(
                     allow_info!(format!("tcp 21116 not match {:?}", &bytes));
                 }
             } else {
-                // allow_info!("211111116  tcp time out ");
+                info!("699999 21116连接超时");
+                break;
+
             }
+
         }
+
     }
+
     sleep(2 as f32).await;
     info!("701{}", "xxxxxxxxxxxxx");
 
