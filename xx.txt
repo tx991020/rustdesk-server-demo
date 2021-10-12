@@ -232,19 +232,4 @@ async fn relay(
     }
 }
 
-#[tokio::test]
-async fn tcp_listen() -> Result<()> {
-    let mut listener_active = new_listener("0.0.0.0:21117", false).await.unwrap();
-
-    loop {
-        let (stream, addr) = listener_active.accept().await?;
-        let mut stream = FramedStream::from(stream);
-        println!("{}", 222222);
-        while let Some(line) = stream.next_timeout(3000).await {
-            let line = line?;
-            println!("{:?}", line);
-            // sender.send(Event::Message(addr, line)).await.ok();
-        }
-    }
-    Ok(())
-}
+//整理grpc接口

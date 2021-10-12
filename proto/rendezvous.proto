@@ -158,14 +158,23 @@ message RendezvousMessage {
 service Register {
   // Sends a greeting
   rpc SayHello (HelloRequest2) returns (HelloReply2) {}
+  rpc RegisterPeer (HelloRequest2) returns (HelloReply2) {}
 }
 
-// The request message containing the user's name.
+
 message HelloRequest2 {
   string name = 1;
 }
-
-// The response message containing the greetings
 message HelloReply2 {
   string message = 1;
 }
+
+
+message RegisterPeerReq {
+  string name = 1;
+}
+
+message RegisterPeerRes {
+  string message = 1;
+}
+
