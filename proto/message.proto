@@ -1,5 +1,5 @@
 syntax = "proto3";
-package hbb;
+package message;
 
 message VP9 {
   bytes data = 1;
@@ -83,6 +83,7 @@ message MouseEvent {
 }
 
 enum ControlKey {
+  ControlKeyEmpty =0;
   Alt = 1;
   Backspace = 2;
   CapsLock = 3;
@@ -201,6 +202,7 @@ message Clipboard {
 };
 
 enum FileType {
+  FileEmpty =0;
   Dir = 1;
   DirLink = 2;
   DirDrive = 3;
@@ -323,9 +325,10 @@ message SwitchDisplay {
 }
 
 enum Permission {
-  Keyboard = 1;
-  Clipboard = 2;
-  Audio = 3;
+  PermissionEmpty =0;
+  PermissionKeyboard = 1;
+  PermissionClipboard = 2;
+  PermissionAudio = 3;
 }
 
 message PermissionInfo {
@@ -334,14 +337,14 @@ message PermissionInfo {
 }
 
 enum ImageQuality {
-  NotSet = 0;
+  ImageQualityNotSet = 0;
   Low = 2;
   Balanced = 3;
   Best = 4;
 }
 
 enum BoolOption {
-  NotSet = 0;
+  BoolOptionNotSet = 0;
   No = 1;
   Yes = 2;
 }
@@ -419,15 +422,15 @@ message Message {
 
 service Chatter {
   // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
+  rpc SayHello (HelloRequest1) returns (HelloReply1) {}
 }
 
 // The request message containing the user's name.
-message HelloRequest {
+message HelloRequest1 {
   string name = 1;
 }
 
 // The response message containing the greetings
-message HelloReply {
+message HelloReply1 {
   string message = 1;
 }

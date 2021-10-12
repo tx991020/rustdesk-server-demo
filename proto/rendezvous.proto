@@ -58,6 +58,7 @@ message RegisterPk {
 
 message RegisterPkResponse {
   enum Result {
+    Empty =0;
     OK = 1;
     UUID_MISMATCH = 2;
     ID_EXISTS = 3;
@@ -69,10 +70,12 @@ message RegisterPkResponse {
   Result result = 1;
 }
 
+
 message PunchHoleResponse {
   bytes socket_addr = 1;
   bytes pk = 2;
   enum Failure {
+    Empty =0;
     ID_NOT_EXIST = 1;
     OFFLINE = 2;
     LICENCE_MISMATCH = 3;
@@ -154,15 +157,15 @@ message RendezvousMessage {
 
 service Register {
   // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
+  rpc SayHello (HelloRequest2) returns (HelloReply2) {}
 }
 
 // The request message containing the user's name.
-message HelloRequest {
+message HelloRequest2 {
   string name = 1;
 }
 
 // The response message containing the greetings
-message HelloReply {
+message HelloReply2 {
   string message = 1;
 }
