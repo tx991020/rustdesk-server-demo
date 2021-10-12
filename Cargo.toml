@@ -16,7 +16,28 @@ futures = "0.3.16"
 tokio-tungstenite = "*"
 url = "2.2.2"
 smol = "1.2.5"
+tonic = "0.5.2"
+tokio-stream = "0.1.5"
+prost = "0.8.0"
 
+[build-dependencies]
+tonic-build = "0.5.2"
+
+
+
+
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
 
 
 [[example]]
