@@ -1,0 +1,59 @@
+
+ActiveClient
+
+
+handle_msg_from_peer
+1 message::Union::video_frame
+2 message::Union::hash(hash)
+3 message::Union::login_response(lr)
+4 login_response::Union::peer_info(pi)
+5 message::Union::cursor_data(cd)
+6 message::Union::cursor_id(id)
+7 message::Union::cursor_position(cp)
+8 message::Union::clipboard(cb)
+9 message::Union::file_response(fr)
+10 message::Union::misc(misc)
+11 misc::Union::audio_format(f)
+12 misc::Union::chat_message(c)
+13 misc::Union::permission_info(p)
+14 misc::Union::switch_display(s)
+15 misc::Union::close_reason(c)
+16 message::Union::cmd_response(t)
+17 message::Union::test_delay(t)
+18 message::Union::audio_frame(frame)
+
+
+handle_msg_from_ui
+
+close
+Login handle_login_from_ui
+Message
+CMDAction
+SendFiles
+SetNoConfirm
+ConfirmDeleteFiles
+RemoveDirAll
+CancelJob
+RemoveDir
+RemoveFile
+CreateDir
+
+
+passive_start
+recive_msg_from_rendezvous
+1 message::Union::login_request(lr)
+2 message::Union::test_delay(t)
+3 message::Union::mouse_event(me)
+4 message::Union::cmd_action(f)  // 短链接
+5 message::Union::key_event(mut me)
+6 message::Union::clipboard(cb)
+7 message::Union::file_action(fa)
+8 message::Union::file_response(fr)
+9 message::Union::misc(misc)
+10 misc::Union::chat_message(c)
+11 misc::Union::option(o)
+12 misc::Union::refresh_video(r)
+13 send_login_error
+14 send_permisssion
+15
+

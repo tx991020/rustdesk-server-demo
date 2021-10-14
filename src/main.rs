@@ -95,6 +95,8 @@ enum Event {
     UnNone,
 }
 
+pub const RENDEZVOUS_SERVER: &'static str = "39.107.33.253:21117";
+
 //默认情况下，hbbs 侦听 21115(tcp) 和 21116(tcp/udp)，hbbr 侦听 21117(tcp)。请务必在防火墙中打开这些端口
 //上线离线问题, id,ip
 
@@ -245,7 +247,7 @@ async fn tcp_21117_read_rendezvous_message(
                             allow_info!(format!("{:?}", &ph));
                             let mut msg = RendezvousMessage::new();
                             msg.set_relay_response(RelayResponse {
-                                relay_server: "39.107.33.253:21117".to_string(),
+                                relay_server: RENDEZVOUS_SERVER.to_string(),
                                 ..Default::default()
                             });
 
@@ -602,7 +604,7 @@ async fn tcp_21116_read_rendezvous_message(
                             allow_info!(format!("{:?}", &ph));
                             let mut msg_out = RendezvousMessage::new();
                             msg_out.set_relay_response(RelayResponse {
-                                relay_server: "39.107.33.253:21117".to_string(),
+                                relay_server: RENDEZVOUS_SERVER.to_string(),
                                 ..Default::default()
                             });
                             stream.send(&msg_out).await;
@@ -998,7 +1000,7 @@ async fn udp_21116(
             match eve {
                 Event::First(id, a) => {
                     allow_info!(format!("{}", "first"));
-                    udp_send_fetch_local_addr(&mut socket1, "39.107.33.253:21117".to_string(), a)
+                    udp_send_fetch_local_addr(&mut socket1, RENDEZVOUS_SERVER.to_string(), a)
                         .await;
                 }
                 Event::Second(id, b) => {
@@ -1009,7 +1011,7 @@ async fn udp_21116(
                         &mut socket1,
                         id,
                         uuid,
-                        "39.107.33.253:21117".to_string(),
+                        RENDEZVOUS_SERVER.to_string(),
                         b,
                     )
                     .await;
@@ -1047,7 +1049,7 @@ async fn udp_send_fetch_local_addr(
     addr: std::net::SocketAddr,
 ) -> Result<()> {
     let mut msg = RendezvousMessage::new();
-    let addr1 = to_socket_addr("39.107.33.253:21117").unwrap();
+    let addr1 = to_socket_addr(RENDEZVOUS_SERVER).unwrap();
 
     let vec1 = AddrMangle::encode(addr1);
     msg.set_fetch_local_addr(FetchLocalAddr {
@@ -1161,14 +1163,7 @@ async fn handle_udp(
                     .send((Bytes::from(msg.write_to_bytes().unwrap()), addr.clone()))
                     .await;
             }
-            //暂存没用
-            Some(rendezvous_message::Union::configure_update(rp)) => {
-                info!("configure_update {:?}", addr);
-                // id_map.insert(rp.id, addr);
-                // let mut msg_out = ConfigUpdate::new();
-                // msg_out.set_configure_update(msg_out);
-                // socket.send(&msg_out, addr).await.ok();
-            }
+
             //暂时没用
             Some(rendezvous_message::Union::software_update(rp)) => {
                 allow_info!(format!("software_update {:?}", addr));

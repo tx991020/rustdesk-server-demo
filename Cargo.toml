@@ -19,6 +19,13 @@ smol = "1.2.5"
 tonic = "0.5.2"
 tokio-stream = "0.1.5"
 prost = "0.8.0"
+actix = "0.12.0"
+actix-broker = "0.4.1"
+actix-web = "3.3.2"
+actix-web-actors = "3.0.0"
+awc = "2.0.3"
+actix-codec = "0.4.0"
+bytes = "0.5.3"
 
 [build-dependencies]
 tonic-build = "0.5.2"
@@ -119,3 +126,11 @@ path = "apps/proxy.rs"
 [[example]]
 name = "consumer"
 path = "apps/consumer.rs"
+
+[[example]]
+name = "ws-actix-client"
+path = "apps/ws-actix-client.rs"
+
+[[example]]
+name = "ws-actix-server"
+path = "apps/ws-actix-server.rs"

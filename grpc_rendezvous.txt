@@ -1,0 +1,19 @@
+// client2server   grpc或者websocket
+1 RegisterPeerReq RegisterPeerRes
+2 RegisterPkReq RegisterPkRes
+3 SoftwareUpdateReq SoftwareUpdateRes
+server2client
+1 udp_send_fetch_local_addr
+2 udp_send_request_relay
+
+// 1定时心跳 keepalive
+// 2维护对应关系表
+// 3 创建房间
+
+
+
+方案1 actix-web+actor
+方案2 tonic+tcp+tokio-tungstenite
+方案3 grpc+broadcast
+
+
