@@ -38,13 +38,13 @@ tonic-build = "0.5.2"
 name = "main"
 path = "src/main.rs"
 
-[[bin]]
-name = "server"
-path = "src/server.rs"
-
-[[bin]]
-name = "client"
-path = "src/client.rs"
+#[[bin]]
+#name = "server"
+#path = "src/server.rs"
+#
+#[[bin]]
+#name = "client"
+#path = "src/client.rs"
 
 
 [[example]]

@@ -95,7 +95,8 @@ enum Event {
     UnNone,
 }
 
-pub const RENDEZVOUS_SERVER: &'static str = "39.107.33.253:21117";
+//pub const RENDEZVOUS_SERVER: &'static str = "39.107.33.253:21117";
+pub const RENDEZVOUS_SERVER: &'static str = "121.37.238.76";
 
 //默认情况下，hbbs 侦听 21115(tcp) 和 21116(tcp/udp)，hbbr 侦听 21117(tcp)。请务必在防火墙中打开这些端口
 //上线离线问题, id,ip
