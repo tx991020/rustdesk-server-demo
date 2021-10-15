@@ -26,6 +26,7 @@ actix-web-actors = "3.0.0"
 awc = "2.0.3"
 actix-codec = "0.4.0"
 bytes = "0.5.3"
+lazy_static = "1.4.0"
 
 [build-dependencies]
 tonic-build = "0.5.2"

@@ -19,6 +19,7 @@ use hbb_common::{
     udp::FramedSocket,
     AddrMangle,
 };
+
 use hbb_common::{log, ResultType};
 use std::collections::BTreeSet;
 use std::net::SocketAddr;
@@ -96,7 +97,11 @@ enum Event {
 }
 
 //pub const RENDEZVOUS_SERVER: &'static str = "39.107.33.253:21117";
-pub const RENDEZVOUS_SERVER: &'static str = "121.37.238.76";
+// pub const RENDEZVOUS_SERVER: &'static str = "121.37.238.76:21117";
+
+lazy_static::lazy_static! {
+    pub static ref RENDEZVOUS_SERVER: String = std::env::var("RENDEZVOUS_SERVER").unwrap();
+}
 
 //默认情况下，hbbs 侦听 21115(tcp) 和 21116(tcp/udp)，hbbr 侦听 21117(tcp)。请务必在防火墙中打开这些端口
 //上线离线问题, id,ip
@@ -119,6 +124,7 @@ async fn main() -> Result<()> {
     // tracing_subscriber::fmt()
     //     .with_writer(non_blocking)
     //     .init();
+
     tracing_subscriber::fmt::init();
 
     let (ip_sender, mut ip_rcv) = async_channel::unbounded::<Event>();
@@ -193,7 +199,7 @@ async fn tcp_passive_21117(
 ) -> Result<()> {
     let mut listener_active = new_listener(addr, false).await?;
     loop {
-        // Accept the next connection.
+
 
         let (stream, addr1) = listener_active.accept().await?;
 
@@ -445,6 +451,7 @@ async fn tcp_21117_read_rendezvous_message(
             if let Some(Ok(bytes)) =res {
             if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                 match msg_in.union {
+                            //21117 send
                     Some(message::Union::cmd_action(hash)) => {
                         allow_info!(format!("21117 signed_id {:?}", &hash));
                         let mut msg = Message::new();
@@ -661,8 +668,7 @@ async fn tcp_21116_read_rendezvous_message(
                             stream.send(&msg_out).await?;
                             //记录两人ip匹配关系, 给lock加作用域
 
-                            sender
-                                .send(Event::First(remote_desk_id, client.local_addr))
+                            sender.send(Event::First(remote_desk_id, client.local_addr))
                                 .await;
                         }
                         Some(rendezvous_message::Union::request_relay(ph)) => {
@@ -752,7 +758,8 @@ async fn tcp_21116_read_rendezvous_message(
 
                        stream.send_raw(msg.write_to_bytes().unwrap()).await;
                     }
-                    Some(message::Union::cmd_response(hash)) => {
+                    //21116 recv
+                    Some(message::Union::cmd_action(hash)) => {
                        allow_info!(format!("21119 Receiver cmd_response {:?}", &hash));
                        let mut msg = Message::new();
                        msg.set_cmd_response(hash);
@@ -841,6 +848,7 @@ async fn tcp_21116_read_rendezvous_message(
                 if let Some(Ok(bytes)) =res{
              if let Ok(msg_in) = Message::parse_from_bytes(&bytes){
                  match msg_in.union{
+                            //21116 send
                      Some(message::Union::cmd_action(hash)) => {
                      allow_info!(format!("21116 cmd_action {:?}", &hash));
                      let mut msg = Message::new();
@@ -1050,7 +1058,7 @@ async fn udp_send_fetch_local_addr(
     addr: std::net::SocketAddr,
 ) -> Result<()> {
     let mut msg = RendezvousMessage::new();
-    let addr1 = to_socket_addr(RENDEZVOUS_SERVER).unwrap();
+    let addr1 = to_socket_addr(RENDEZVOUS_SERVER.as_str()).unwrap();
 
     let vec1 = AddrMangle::encode(addr1);
     msg.set_fetch_local_addr(FetchLocalAddr {
