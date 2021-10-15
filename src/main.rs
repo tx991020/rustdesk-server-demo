@@ -762,7 +762,10 @@ async fn tcp_21116_read_rendezvous_message(
                     Some(message::Union::cmd_action(hash)) => {
                        allow_info!(format!("21119 Receiver cmd_response {:?}", &hash));
                        let mut msg = Message::new();
-                       msg.set_cmd_response(hash);
+                       msg.set_cmd_response(CMDResponse{
+                              cmd:hash.cmd,
+                            ..Default::default()
+                            });
 
                        stream.send_raw(msg.write_to_bytes().unwrap()).await;
                     }
