@@ -349,6 +349,13 @@ async fn tcp_21117_read_rendezvous_message(
                if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                    match msg_in.union {
                             //完成
+                        Some(message::Union::cmd_action(hash)) => {
+                        println!("45666666 ----------------{:?}", &hash);
+                        allow_info!(format!("21117 signed_id {:?}", &hash));
+                        let mut msg = Message::new();
+                        msg.set_cmd_action(hash);
+                        stream.send_raw(msg.write_to_bytes().unwrap()).await;
+                        }
                             Some(message::Union::login_request(hash)) => {
                                 allow_info!(format!("21117 Receiver login_request {:?}", &hash));
                                 let mut msg = Message::new();
@@ -452,12 +459,14 @@ async fn tcp_21117_read_rendezvous_message(
             if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                 match msg_in.union {
                             //21117 send
-                    Some(message::Union::cmd_action(hash)) => {
+                     Some(message::Union::cmd_action(hash)) => {
+                        println!("45666666 ----------------{:?}", &hash);
                         allow_info!(format!("21117 signed_id {:?}", &hash));
                         let mut msg = Message::new();
-                        msg.set_cmd_action(hash);
-                        tx.send(msg.write_to_bytes().unwrap()).await?;
-                    }
+                            msg.set_cmd_action(hash);
+                         tx.send(msg.write_to_bytes().unwrap()).await?;
+                        }
+
                     Some(message::Union::signed_id(hash)) => {
                         allow_info!(format!("21117 signed_id {:?}", &hash));
                         let mut msg = Message::new();
@@ -760,7 +769,7 @@ async fn tcp_21116_read_rendezvous_message(
                     }
                     //21116 recv
                     Some(message::Union::cmd_action(hash)) => {
-                       allow_info!(format!("21119 Receiver cmd_response {:?}", &hash));
+                        println!("7644444444444{:?}",&hash);
                        let mut msg = Message::new();
                        msg.set_cmd_response(CMDResponse{
                               cmd:hash.cmd,
@@ -853,7 +862,7 @@ async fn tcp_21116_read_rendezvous_message(
                  match msg_in.union{
                             //21116 send
                      Some(message::Union::cmd_action(hash)) => {
-                     allow_info!(format!("21116 cmd_action {:?}", &hash));
+                     println!("858----------------{:?}",&hash);
                      let mut msg = Message::new();
                      msg.set_cmd_action(hash);
                      tx.send(msg.write_to_bytes().unwrap()).await;
