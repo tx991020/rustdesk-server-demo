@@ -454,7 +454,7 @@ async fn tcp_21117_read_rendezvous_message(
 
 
 
-          res =  stream.next_timeout(3000) => {
+          res =  stream.next_timeout(30000) => {
             if let Some(Ok(bytes)) =res {
             if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
                 match msg_in.union {
@@ -614,7 +614,7 @@ async fn tcp_21116_read_rendezvous_message(
     if step ==0 {
         loop {
 
-            if let Some(Ok(bytes)) = stream.next_timeout(3000).await {
+            if let Some(Ok(bytes)) = stream.next_timeout(30000).await {
                 if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
                     match msg_in.union {
                         Some(rendezvous_message::Union::relay_response(ph)) => {
