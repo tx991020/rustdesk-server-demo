@@ -53,7 +53,7 @@ mod tests {
         let local_desk_id = Config::get_id();
 
         let serial = Config::get_serial();
-        let mut msg_out = RendezvousMessage::new();
+
         let mut msg_out = RendezvousMessage::new();
         msg_out.set_register_peer(RegisterPeer {
             id: local_desk_id,

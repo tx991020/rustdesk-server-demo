@@ -125,6 +125,7 @@ async fn main() -> Result<()> {
     //     .with_writer(non_blocking)
     //     .init();
 
+
     tracing_subscriber::fmt::init();
 
     let (ip_sender, mut ip_rcv) = async_channel::unbounded::<Event>();
@@ -160,7 +161,7 @@ async fn traverse_ip_map(id_map: Arc<Mutex<HashMap<String, client>>>, state: Arc
         guard.retain(|key, value| value.timestamp > get_time() - 1000 * 20);
         drop(guard);
         let guard1 = state.lock().await;
-        // println!("在线tcp连接{:#?}，{:#?}", guard1.kv16, guard1.kv17);
+        println!("在线tcp连接{:#?}，{:#?}", guard1.kv16, guard1.kv17);
         drop(guard1);
         interval.tick().await;
     }
@@ -250,11 +251,12 @@ async fn tcp_21117_read_rendezvous_message(
                                     .await;
                             }
                         }
+                        //测试能否与中继ping通
                         Some(rendezvous_message::Union::relay_response(ph)) => {
                             allow_info!(format!("{:?}", &ph));
                             let mut msg = RendezvousMessage::new();
                             msg.set_relay_response(RelayResponse {
-                                relay_server: RENDEZVOUS_SERVER.to_string(),
+                                relay_server: "39.107.33.253:21117".to_string(),
                                 ..Default::default()
                             });
 
@@ -609,7 +611,7 @@ async fn tcp_21116_read_rendezvous_message(
     }
     drop(guard);
 
-    println!("gggggggggg 596  step {}, addr {:?}", step, addr);
+
     let (tx, mut rx) = unbounded::<Vec<u8>>();
     if step ==0 {
         loop {
@@ -621,7 +623,7 @@ async fn tcp_21116_read_rendezvous_message(
                             allow_info!(format!("{:?}", &ph));
                             let mut msg_out = RendezvousMessage::new();
                             msg_out.set_relay_response(RelayResponse {
-                                relay_server: RENDEZVOUS_SERVER.to_string(),
+                                relay_server: "39.107.33.253:21117".to_string(),
                                 ..Default::default()
                             });
                             stream.send(&msg_out).await;
@@ -1021,7 +1023,7 @@ async fn udp_21116(
             match eve {
                 Event::First(id, a) => {
                     allow_info!(format!("{}", "first"));
-                    udp_send_fetch_local_addr(&mut socket1, RENDEZVOUS_SERVER.to_string(), a)
+                    udp_send_fetch_local_addr(&mut socket1, "39.107.33.253:21117".to_string(), a)
                         .await;
                 }
                 Event::Second(id, b) => {
@@ -1032,7 +1034,7 @@ async fn udp_21116(
                         &mut socket1,
                         id,
                         uuid,
-                        RENDEZVOUS_SERVER.to_string(),
+                        "39.107.33.253:21117".to_string(),
                         b,
                     )
                     .await;
@@ -1070,7 +1072,7 @@ async fn udp_send_fetch_local_addr(
     addr: std::net::SocketAddr,
 ) -> Result<()> {
     let mut msg = RendezvousMessage::new();
-    let addr1 = to_socket_addr(RENDEZVOUS_SERVER.as_str()).unwrap();
+    let addr1 = to_socket_addr("39.107.33.253:21117").unwrap();
 
     let vec1 = AddrMangle::encode(addr1);
     msg.set_fetch_local_addr(FetchLocalAddr {
@@ -1097,16 +1099,6 @@ async fn udp_send_punch_hole(
     // socket.send(&msg_out, addr).await.ok();
 }
 
-async fn udp_send_configure_update(
-    socket: &mut UdpFramed<BytesCodec, Arc<UdpSocket>>,
-    bytes: BytesMut,
-    addr: std::net::SocketAddr,
-    id_map: std::collections::HashMap<String, std::net::SocketAddr>,
-) {
-    // let mut msg_out = FetchLocalAddr::new();
-    // msg_out.set_fetch_local_addr(msg_out);
-    // socket.send(&msg_out, addr).await.ok();
-}
 
 //给被动方生成一个uuid
 async fn udp_send_request_relay(

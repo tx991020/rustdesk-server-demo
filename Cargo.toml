@@ -27,6 +27,11 @@ awc = "2.0.3"
 actix-codec = "0.4.0"
 bytes = "0.5.3"
 lazy_static = "1.4.0"
+socket2 = "0.3"
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+dashmap = "4.0.2"
+
 
 [build-dependencies]
 tonic-build = "0.5.2"
@@ -110,6 +115,35 @@ path = "apps/demo14.rs"
 
 
 [[example]]
+name = "demo15"
+path = "apps/demo15.rs"
+
+
+[[example]]
+name = "demo16"
+path = "apps/proxy-client.rs"
+
+
+[[example]]
+name = "demo17"
+path = "apps/demo17.rs"
+
+[[example]]
+name = "demo18"
+path = "apps/demo18.rs"
+
+[[example]]
+name = "demo19"
+path = "apps/demo19.rs"
+
+
+[[example]]
+name = "demo20"
+path = "apps/demo20.rs"
+
+
+
+[[example]]
 name = "forward"
 path = "apps/forward.rs"
 
@@ -117,6 +151,15 @@ path = "apps/forward.rs"
 [[example]]
 name = "broadcast"
 path = "apps/broadcast.rs"
+
+
+[[example]]
+name = "multicast"
+path = "apps/multicast.rs"
+
+[[example]]
+name = "mult1"
+path = "apps/mult1.rs"
 
 
 
