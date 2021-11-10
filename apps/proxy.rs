@@ -4,7 +4,7 @@ use hbb_common::{tokio, timeout, to_socket_addr};
 use hbb_common::tokio::net::{TcpListener, TcpStream};
 use hbb_common::ResultType;
 use hbb_common::bytes::Bytes;
-use hbb_common::tokio_util::codec::{Framed, LengthDelimitedCodec};
+use hbb_common::tokio_util::codec::{Framed, BytesCodec};
 
 use hbb_common::config::RENDEZVOUS_TIMEOUT;
 use hbb_common::anyhow::Context;
@@ -72,10 +72,10 @@ async fn tcp3(){
 
 
     // println!("{:?}",socket.get_ref().local_addr() );
-    let mut stream =Framed::new(stream1, LengthDelimitedCodec::new());
+    let mut stream =Framed::new(stream1, BytesCodec::new());
     let sock = TcpStream::connect("127.0.0.1:3389").await.unwrap();
-    let mut forward = Framed::new(sock, LengthDelimitedCodec::new());
-    forward.send(Bytes::from("ping")).await;
+    let mut forward = Framed::new(sock, BytesCodec::new());
+
 
     loop {
         tokio::select!{

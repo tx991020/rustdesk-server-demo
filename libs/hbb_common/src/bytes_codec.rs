@@ -253,6 +253,7 @@ mod tests {
         }
         let mut codec2 = BytesCodec::new();
         let mut buf2 = BytesMut::new();
+
         buf2.extend(&buf_saved[0..1]);
         if let Ok(None) = codec2.decode(&mut buf2) {
         } else {

@@ -161,11 +161,40 @@ path = "apps/multicast.rs"
 name = "mult1"
 path = "apps/mult1.rs"
 
+[[example]]
+name = "echo"
+path = "apps/echo.rs"
+
+[[example]]
+name = "cast1"
+path = "apps/cast1.rs"
+
+[[example]]
+name = "cast2"
+path = "apps/cast2.rs"
+
+[[example]]
+name = "cast3"
+path = "apps/cast3.rs"
+
+[[example]]
+name = "ehco1"
+path = "apps/echo1.rs"
+
+
+
+[[example]]
+name = "ehco2"
+path = "apps/echo2.rs"
 
 
 [[example]]
 name = "proxy"
 path = "apps/proxy.rs"
+
+[[example]]
+name = "proxyclient"
+path = "apps/proxyclient.rs"
 
 [[example]]
 name = "consumer"

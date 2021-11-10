@@ -1,12 +1,15 @@
 use hbb_common::tokio::select;
 use hbb_common::udp::FramedSocket;
-use hbb_common::{to_socket_addr, tokio, ResultType};
+use hbb_common::{to_socket_addr, tokio, ResultType, sleep};
 use std::collections::HashSet;
 use std::io;
+use std::time::Duration;
+
 use hbb_common::anyhow::Context;
 use hbb_common::tcp::FramedStream;
 use hbb_common::config::RENDEZVOUS_TIMEOUT;
 use hbb_common::bytes::Bytes;
+use hbb_common::bytes_codec::BytesCodec;
 use hbb_common::tokio_util::codec::{Framed,LengthDelimitedCodec};
 use hbb_common::tokio::net::{UdpSocket, TcpSocket, TcpStream};
 use hbb_common::futures::{SinkExt,StreamExt};
@@ -21,20 +24,23 @@ use hbb_common::tokio::io::AsyncWriteExt;
 async fn main() -> ResultType<()> {
 
 
+
+
     // let mut socket1 = UdpSocket::bind("0.0.0.0:0").await?;
-    let mut stream = TcpStream::connect("39.107.33.253:6000").await?;
+    let mut stream = TcpStream::connect("127.0.0.1:13000").await?;
 
 
     // println!("{:?}",socket.get_ref().local_addr() );
-    let mut socket =Framed::new(stream, LengthDelimitedCodec::new());
-    socket.send(Bytes::from("hahha")).await;
+    let mut socket =Framed::new(stream, BytesCodec::new());
+    socket.send(Bytes::from("qwerty")).await;
+
 
 
 
     loop {
         select! {
             Some(Ok(bytes)) = socket.next() => {
-                println!("addr{:?}",bytes);
+                println!("addr   {:?}",bytes);
 
             }
             else => break,

@@ -6,14 +6,17 @@
 
 use std::env;
 use std::error::Error;
+
 use hbb_common::tokio::net::{TcpListener, TcpStream};
 use hbb_common::tokio;
 use hbb_common::ResultType;
 use hbb_common::tokio::io;
 use hbb_common::tokio::io::AsyncWriteExt;
-use hbb_common::tokio_util::codec::{Framed, LengthDelimitedCodec};
+use hbb_common::tokio_util::codec::{Framed, LengthDelimitedCodec,BytesCodec};
 use hbb_common::futures::{SinkExt, StreamExt};
 use hbb_common::bytes;
+
+
 #[tokio::main]
 async fn main() -> ResultType<()> {
     let listen_addr = env::args()
@@ -35,9 +38,9 @@ async fn main() -> ResultType<()> {
     //xp编译代理
     //需要在xp编译无客户端的服务并注册,开启3389,把3389转发到21117
     while let Ok((inbound, _)) = listener.accept().await {
-        let mut forward = Framed::new(inbound, LengthDelimitedCodec::new());
+        let mut forward = Framed::new(inbound, BytesCodec::new());
         let mut outbound = TcpStream::connect(server_addr.clone()).await?;
-        let mut stream = Framed::new(outbound, LengthDelimitedCodec::new());
+        let mut stream = Framed::new(outbound, BytesCodec::new());
         let bytes1 = bytes::Bytes::from("qqqq");
         stream.send(bytes1).await;
         loop {
