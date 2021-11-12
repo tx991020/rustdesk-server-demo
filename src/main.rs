@@ -3,11 +3,11 @@ use crate::tokio::signal::ctrl_c;
 use crate::tokio::time::interval;
 use hbb_common::bytes::Bytes;
 use hbb_common::message_proto::{message, Message};
-use hbb_common::tokio::sync::{mpsc, RwLock};
+use hbb_common::tokio::sync::{broadcast, mpsc, RwLock};
 use hbb_common::tokio::time;
 use hbb_common::{
     allow_err, allow_info,
-    anyhow::{anyhow, Context, Result},
+    anyhow::{bail, Context, Result},
     bytes::BytesMut,
     message_proto::*,
     protobuf,
@@ -32,15 +32,17 @@ extern crate tracing;
 
 use crate::tokio::sync::Mutex;
 use async_channel::{bounded, unbounded, Receiver, Sender};
+use dashmap::DashMap;
 use futures::FutureExt;
 use hbb_common::futures_util::{SinkExt, StreamExt};
 use hbb_common::message_proto::message::Union;
+use hbb_common::message_proto::misc::Union::option;
 use hbb_common::sodiumoxide::crypto::secretbox;
 use hbb_common::sodiumoxide::crypto::stream::stream;
-use hbb_common::tokio::net::{TcpStream, UdpSocket};
+use hbb_common::tokio::net::{TcpListener, TcpStream, UdpSocket};
 use hbb_common::tokio::sync::mpsc::UnboundedSender;
 use hbb_common::tokio::task::JoinHandle;
-use hbb_common::tokio_util::codec::{BytesCodec, Framed};
+use hbb_common::tokio_util::codec::{BytesCodec, Framed, LengthDelimitedCodec};
 use hbb_common::tokio_util::udp::UdpFramed;
 use smol::Timer;
 use std::borrow::{Borrow, BorrowMut};
@@ -49,7 +51,6 @@ use std::collections::HashMap;
 use std::io::Error;
 use std::sync::Arc;
 use tracing_subscriber;
-
 
 /// Shorthand for the transmit half of the message channel.
 type Tx = Sender<Vec<u8>>;
@@ -83,6 +84,7 @@ struct client {
     //心跳
     timestamp: u64,
     local_addr: SocketAddr,
+    peer_ip: String,
     uuid: String,
 }
 
@@ -101,6 +103,9 @@ enum Event {
 
 lazy_static::lazy_static! {
     pub static ref RENDEZVOUS_SERVER: String = std::env::var("RENDEZVOUS_SERVER").unwrap();
+    pub static ref IdMap: Arc<DashMap<String, client>> = Arc::new(DashMap::new());
+      pub static ref IpMap: Arc<DashMap<String, client>> = Arc::new(DashMap::new());
+
 }
 
 //默认情况下，hbbs 侦听 21115(tcp) 和 21116(tcp/udp)，hbbr 侦听 21117(tcp)。请务必在防火墙中打开这些端口
@@ -125,25 +130,20 @@ async fn main() -> Result<()> {
     //     .with_writer(non_blocking)
     //     .init();
 
-
     tracing_subscriber::fmt::init();
 
     let (ip_sender, mut ip_rcv) = async_channel::unbounded::<Event>();
-
-    let mut id_map: Arc<Mutex<HashMap<String, client>>> = Arc::new(Mutex::new(HashMap::new()));
     let state = Arc::new(Mutex::new(Shared::new()));
-    tokio::spawn(traverse_ip_map(id_map.clone(), state.clone()));
-    tokio::spawn(udp_21116(id_map.clone(), ip_rcv.clone()));
+    tokio::spawn(traverse_id_map());
+    tokio::spawn(udp_21116(ip_rcv.clone()));
     tokio::spawn(tcp_passive_21117(
         "0.0.0.0:21117",
-        id_map.clone(),
         state.clone(),
         ip_sender.clone(),
     ));
     //完成
     tokio::spawn(tcp_active_21116(
         "0.0.0.0:21116",
-        id_map,
         state.clone(),
         ip_sender.clone(),
     ));
@@ -153,23 +153,19 @@ async fn main() -> Result<()> {
 }
 
 //删除30秒内没心跳的号
-async fn traverse_ip_map(id_map: Arc<Mutex<HashMap<String, client>>>, state: Arc<Mutex<Shared>>) {
+async fn traverse_id_map() {
     let mut interval = time::interval(Duration::from_secs(30));
     loop {
-        let mut guard = id_map.lock().await;
-        // println!("在线用户{:#?}", guard);
+        let mut guard = IdMap.clone();
+        println!("在线用户{:#?}", &guard);
         guard.retain(|key, value| value.timestamp > get_time() - 1000 * 20);
         drop(guard);
-        let guard1 = state.lock().await;
-        println!("在线tcp连接{:#?}，{:#?}", guard1.kv16, guard1.kv17);
-        drop(guard1);
         interval.tick().await;
     }
 }
 
 async fn tcp_active_21116(
     addr: &str,
-    id_map: Arc<Mutex<HashMap<String, client>>>,
     state: Arc<Mutex<Shared>>,
     sender: Sender<Event>,
 ) -> Result<()> {
@@ -194,20 +190,17 @@ async fn tcp_active_21116(
 
 async fn tcp_passive_21117(
     addr: &str,
-    id_map: Arc<Mutex<HashMap<String, client>>>,
+
     state: Arc<Mutex<Shared>>,
     sender: Sender<Event>,
 ) -> Result<()> {
     let mut listener_active = new_listener(addr, false).await?;
     loop {
-
-
         let (stream, addr1) = listener_active.accept().await?;
 
         // Read messages from the client and ignore I/O errors when the client quits.
         tokio::spawn(tcp_21117_read_rendezvous_message(
             stream,
-            id_map.clone(),
             state.clone(),
             sender.clone(),
             addr1,
@@ -220,7 +213,6 @@ async fn tcp_passive_21117(
 //被动tcp方
 async fn tcp_21117_read_rendezvous_message(
     mut stream1: TcpStream,
-    id_map: Arc<Mutex<HashMap<String, client>>>,
     state: Arc<Mutex<Shared>>,
     sender: Sender<Event>,
     addr: SocketAddr,
@@ -244,7 +236,7 @@ async fn tcp_21117_read_rendezvous_message(
                     match msg_in.union {
                         Some(rendezvous_message::Union::local_addr(ph)) => {
                             let remote_desk_id = ph.id;
-                            let mut id_map = id_map.lock().await;
+                            let mut id_map = IdMap.clone();
                             if let Some(client) = id_map.get(&remote_desk_id) {
                                 sender
                                     .send(Event::Second(remote_desk_id, client.local_addr))
@@ -310,7 +302,6 @@ async fn tcp_21117_read_rendezvous_message(
                 info!("tcp 21117  step0 连接超时");
                 break;
             }
-
         }
     }
     sleep(2 as f32).await;
@@ -611,11 +602,9 @@ async fn tcp_21116_read_rendezvous_message(
     }
     drop(guard);
 
-
     let (tx, mut rx) = unbounded::<Vec<u8>>();
-    if step ==0 {
+    if step == 0 {
         loop {
-
             if let Some(Ok(bytes)) = stream.next_timeout(30000).await {
                 if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
                     match msg_in.union {
@@ -679,7 +668,8 @@ async fn tcp_21116_read_rendezvous_message(
                             stream.send(&msg_out).await?;
                             //记录两人ip匹配关系, 给lock加作用域
 
-                            sender.send(Event::First(remote_desk_id, client.local_addr))
+                            sender
+                                .send(Event::First(remote_desk_id, client.local_addr))
                                 .await;
                         }
                         Some(rendezvous_message::Union::request_relay(ph)) => {
@@ -718,11 +708,8 @@ async fn tcp_21116_read_rendezvous_message(
             } else {
                 info!("699999 21116连接超时");
                 break;
-
             }
-
         }
-
     }
 
     sleep(2 as f32).await;
@@ -1007,17 +994,17 @@ async fn fx2(tx1: Sender<Vec<u8>>, r: Receiver<Vec<u8>>) {
 }
 
 async fn udp_21116(
-    id_map: Arc<Mutex<HashMap<String, client>>>,
+
     receiver: Receiver<Event>,
 ) -> Result<()> {
     let mut socket1 = UdpSocket::bind(to_socket_addr("0.0.0.0:21116").unwrap()).await?;
     let mut r = Arc::new(socket1);
     let mut s = r.clone();
-    let mut socket = UdpFramed::new(r, BytesCodec::new());
-    let mut socket1 = UdpFramed::new(s, BytesCodec::new());
+    let mut socket = UdpFramed::new(r, LengthDelimitedCodec::new());
+    let mut socket1 = UdpFramed::new(s, LengthDelimitedCodec::new());
 
     let receiver1 = receiver.clone();
-    let clone_map = id_map.clone();
+    let clone_map = IdMap.clone();
     tokio::spawn(async move {
         while let Ok(eve) = receiver1.recv().await {
             match eve {
@@ -1067,7 +1054,7 @@ async fn udp_send_register_peer_response(
 //被控第一步//从中间收
 
 async fn udp_send_fetch_local_addr(
-    socket: &mut UdpFramed<BytesCodec, Arc<UdpSocket>>,
+    socket: &mut UdpFramed<LengthDelimitedCodec, Arc<UdpSocket>>,
     relay_server: String,
     addr: std::net::SocketAddr,
 ) -> Result<()> {
@@ -1099,10 +1086,9 @@ async fn udp_send_punch_hole(
     // socket.send(&msg_out, addr).await.ok();
 }
 
-
 //给被动方生成一个uuid
 async fn udp_send_request_relay(
-    socket: &mut UdpFramed<BytesCodec, Arc<UdpSocket>>,
+    socket: &mut UdpFramed<LengthDelimitedCodec, Arc<UdpSocket>>,
     id: String,
     uuid: String,
     relay_server: String,
@@ -1126,7 +1112,7 @@ async fn udp_send_request_relay(
 
 //建立对应关系表
 async fn handle_udp(
-    socket: &mut UdpFramed<BytesCodec, Arc<UdpSocket>>,
+    socket: &mut UdpFramed<LengthDelimitedCodec, Arc<UdpSocket>>,
     bytes: BytesMut,
     addr: std::net::SocketAddr,
     id_map: Arc<Mutex<HashMap<String, client>>>,
@@ -1155,6 +1141,7 @@ async fn handle_udp(
                     client {
                         timestamp: get_time() as u64,
                         local_addr: addr,
+                        peer_ip: "".to_string(),
                         uuid: "".to_string(),
                     },
                 );
@@ -1191,4 +1178,48 @@ async fn handle_udp(
             }
         }
     }
+}
+
+async fn proxy(id_map: Arc<Mutex<HashMap<String, client>>>) -> ResultType<()> {
+    let listener = TcpListener::bind("127.0.0.1:13389").await?;
+    let (tx, _) = broadcast::channel(10);
+
+    println!("chat server is ready");
+    loop {
+        let (mut socket, addr) = listener.accept().await?;
+        println!("clint with addr {} is connected", addr);
+        let tx = tx.clone();
+        let mut rx = tx.subscribe();
+
+        let mut stream = Framed::new(socket, BytesCodec::new());
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    results =  stream.next() => {
+                     if let Some(Ok(bytes)) = results{
+                             println!(" xxx {:?}",bytes);
+                               tx.send((Bytes::from(bytes), addr.ip().to_string())).unwrap();
+                        }else {
+                            println!("{}",333);
+                            break;
+                        }
+                    }
+                    results = rx.recv() => {
+                        let (message, other_addr) = results.unwrap();
+
+
+                        //  let mut id_map = id_map.lock().await;
+                        // if option.is_some() {
+                        //    if  option.unwrap().peer_addr =other_addr{
+                        //          stream.send(message).await.unwrap();
+                        //     }
+                        //
+                        // }
+
+                    }
+                }
+            }
+        });
+    }
+    Ok(())
 }

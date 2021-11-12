@@ -1,4 +1,5 @@
 syntax = "proto3";
+
 package hbb;
 
 message RegisterPeer {
@@ -13,15 +14,15 @@ enum ConnType {
   RDP = 3;
 }
 
-message RegisterPeerResponse { bool request_pk = 2; }
+message RegisterPeerResponse {bool request_pk = 2;}
 
-message PunchHoleRequest { 
-  string id = 1; 
+message PunchHoleRequest {
+  string id = 1;
   NatType nat_type = 2;
   ConnType conn_type = 4;
 }
 
-message PunchHole { 
+message PunchHole {
   bytes socket_addr = 1;
   string relay_server = 2;
   NatType nat_type = 3;
@@ -33,7 +34,7 @@ message TestNatRequest {
 
 // per my test, uint/int has no difference in encoding, int not good for negative, use sint for negative
 message TestNatResponse {
-  int32 port = 1; 
+  int32 port = 1;
   ConfigUpdate cu = 2; // for mobile
 }
 
@@ -58,6 +59,7 @@ message RegisterPk {
 
 message RegisterPkResponse {
   enum Result {
+    Register_None = 0;
     OK = 1;
     UUID_MISMATCH = 2;
     ID_EXISTS = 3;
@@ -73,6 +75,7 @@ message PunchHoleResponse {
   bytes socket_addr = 1;
   bytes pk = 2;
   enum Failure {
+    FAILURE_None = 0;
     ID_NOT_EXIST = 1;
     OFFLINE = 2;
     LICENCE_MISMATCH = 3;
@@ -112,14 +115,14 @@ message RelayResponse {
   string refuse_reason = 6;
 }
 
-message SoftwareUpdate { string url = 1; }
+message SoftwareUpdate {string url = 1;}
 
 // if in same intranet, punch hole won't work both for udp and tcp,
 // even some router has below connection error if we connect itself,
 //  { kind: Other, error: "could not resolve to any address" },
 // so we request local address to connect.
-message FetchLocalAddr { 
-  bytes socket_addr = 1; 
+message FetchLocalAddr {
+  bytes socket_addr = 1;
   string relay_server = 2;
 }
 

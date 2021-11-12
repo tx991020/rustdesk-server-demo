@@ -2694,7 +2694,7 @@ impl KeyEvent {
     pub fn get_control_key(&self) -> ControlKey {
         match self.union {
             ::std::option::Option::Some(key_event::Union::control_key(v)) => ::protobuf::ProtobufEnumOrUnknown::enum_value_or_default(&v),
-            _ => ControlKey::Alt,
+            _ => ControlKey::Empty,
         }
     }
 
@@ -3823,7 +3823,7 @@ impl ::protobuf::Message for FileEntry {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.entry_type != ::protobuf::ProtobufEnumOrUnknown::new(FileType::Dir) {
+        if self.entry_type != ::protobuf::ProtobufEnumOrUnknown::new(FileType::FileEmpty) {
             my_size += ::protobuf::rt::enum_or_unknown_size(1, self.entry_type);
         }
         if !self.name.is_empty() {
@@ -3844,7 +3844,7 @@ impl ::protobuf::Message for FileEntry {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.entry_type != ::protobuf::ProtobufEnumOrUnknown::new(FileType::Dir) {
+        if self.entry_type != ::protobuf::ProtobufEnumOrUnknown::new(FileType::FileEmpty) {
             os.write_enum(1, ::protobuf::ProtobufEnumOrUnknown::value(&self.entry_type))?;
         }
         if !self.name.is_empty() {
@@ -3885,7 +3885,7 @@ impl ::protobuf::Message for FileEntry {
 
     fn default_instance() -> &'static FileEntry {
         static instance: FileEntry = FileEntry {
-            entry_type: ::protobuf::ProtobufEnumOrUnknown::from_i32(1),
+            entry_type: ::protobuf::ProtobufEnumOrUnknown::from_i32(0),
             name: ::std::string::String::new(),
             is_hidden: false,
             size: 0,
@@ -3899,7 +3899,7 @@ impl ::protobuf::Message for FileEntry {
 
 impl ::protobuf::Clear for FileEntry {
     fn clear(&mut self) {
-        self.entry_type = ::protobuf::ProtobufEnumOrUnknown::new(FileType::Dir);
+        self.entry_type = ::protobuf::ProtobufEnumOrUnknown::new(FileType::FileEmpty);
         self.name.clear();
         self.is_hidden = false;
         self.size = 0;
@@ -10759,6 +10759,7 @@ pub mod message {
 
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
 pub enum ControlKey {
+    Empty = 0,
     Alt = 1,
     Backspace = 2,
     CapsLock = 3,
@@ -10845,6 +10846,7 @@ impl ::protobuf::ProtobufEnum for ControlKey {
 
     fn from_i32(value: i32) -> ::std::option::Option<ControlKey> {
         match value {
+            0 => ::std::option::Option::Some(ControlKey::Empty),
             1 => ::std::option::Option::Some(ControlKey::Alt),
             2 => ::std::option::Option::Some(ControlKey::Backspace),
             3 => ::std::option::Option::Some(ControlKey::CapsLock),
@@ -10928,6 +10930,7 @@ impl ::protobuf::ProtobufEnum for ControlKey {
 
     fn values() -> &'static [Self] {
         static values: &'static [ControlKey] = &[
+            ControlKey::Empty,
             ControlKey::Alt,
             ControlKey::Backspace,
             ControlKey::CapsLock,
@@ -11014,10 +11017,9 @@ impl ::protobuf::ProtobufEnum for ControlKey {
     }
 }
 
-// Note, `Default` is implemented although default value is not 0
 impl ::std::default::Default for ControlKey {
     fn default() -> Self {
-        ControlKey::Alt
+        ControlKey::Empty
     }
 }
 
@@ -11033,6 +11035,7 @@ impl ControlKey {
 
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
 pub enum FileType {
+    FileEmpty = 0,
     Dir = 1,
     DirLink = 2,
     DirDrive = 3,
@@ -11047,6 +11050,7 @@ impl ::protobuf::ProtobufEnum for FileType {
 
     fn from_i32(value: i32) -> ::std::option::Option<FileType> {
         match value {
+            0 => ::std::option::Option::Some(FileType::FileEmpty),
             1 => ::std::option::Option::Some(FileType::Dir),
             2 => ::std::option::Option::Some(FileType::DirLink),
             3 => ::std::option::Option::Some(FileType::DirDrive),
@@ -11058,6 +11062,7 @@ impl ::protobuf::ProtobufEnum for FileType {
 
     fn values() -> &'static [Self] {
         static values: &'static [FileType] = &[
+            FileType::FileEmpty,
             FileType::Dir,
             FileType::DirLink,
             FileType::DirDrive,
@@ -11072,10 +11077,9 @@ impl ::protobuf::ProtobufEnum for FileType {
     }
 }
 
-// Note, `Default` is implemented although default value is not 0
 impl ::std::default::Default for FileType {
     fn default() -> Self {
-        FileType::Dir
+        FileType::FileEmpty
     }
 }
 
@@ -11408,41 +11412,42 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x04misc\x18\x13\x20\x01(\x0b2\t.hbb.MiscH\0R\x04miscB\0\x121\n\ncmd_act\
     ion\x18\x14\x20\x01(\x0b2\x0e.hbb.CMDActionH\0R\tcmdActionB\0\x127\n\x0c\
     cmd_response\x18\x15\x20\x01(\x0b2\x10.hbb.CMDResponseH\0R\x0bcmdRespons\
-    eB\0B\t\n\x05union\x12\0:\0*\xaa\x08\n\nControlKey\x12\t\n\x03Alt\x10\
-    \x01\x1a\0\x12\x0f\n\tBackspace\x10\x02\x1a\0\x12\x0e\n\x08CapsLock\x10\
-    \x03\x1a\0\x12\r\n\x07Control\x10\x04\x1a\0\x12\x0c\n\x06Delete\x10\x05\
-    \x1a\0\x12\x0f\n\tDownArrow\x10\x06\x1a\0\x12\t\n\x03End\x10\x07\x1a\0\
-    \x12\x0c\n\x06Escape\x10\x08\x1a\0\x12\x08\n\x02F1\x10\t\x1a\0\x12\t\n\
-    \x03F10\x10\n\x1a\0\x12\t\n\x03F11\x10\x0b\x1a\0\x12\t\n\x03F12\x10\x0c\
-    \x1a\0\x12\x08\n\x02F2\x10\r\x1a\0\x12\x08\n\x02F3\x10\x0e\x1a\0\x12\x08\
-    \n\x02F4\x10\x0f\x1a\0\x12\x08\n\x02F5\x10\x10\x1a\0\x12\x08\n\x02F6\x10\
-    \x11\x1a\0\x12\x08\n\x02F7\x10\x12\x1a\0\x12\x08\n\x02F8\x10\x13\x1a\0\
-    \x12\x08\n\x02F9\x10\x14\x1a\0\x12\n\n\x04Home\x10\x15\x1a\0\x12\x0f\n\t\
-    LeftArrow\x10\x16\x1a\0\x12\n\n\x04Meta\x10\x17\x1a\0\x12\x0c\n\x06Optio\
-    n\x10\x18\x1a\0\x12\x0e\n\x08PageDown\x10\x19\x1a\0\x12\x0c\n\x06PageUp\
-    \x10\x1a\x1a\0\x12\x0c\n\x06Return\x10\x1b\x1a\0\x12\x10\n\nRightArrow\
-    \x10\x1c\x1a\0\x12\x0b\n\x05Shift\x10\x1d\x1a\0\x12\x0b\n\x05Space\x10\
-    \x1e\x1a\0\x12\t\n\x03Tab\x10\x1f\x1a\0\x12\r\n\x07UpArrow\x10\x20\x1a\0\
-    \x12\r\n\x07Numpad0\x10!\x1a\0\x12\r\n\x07Numpad1\x10\"\x1a\0\x12\r\n\
-    \x07Numpad2\x10#\x1a\0\x12\r\n\x07Numpad3\x10$\x1a\0\x12\r\n\x07Numpad4\
-    \x10%\x1a\0\x12\r\n\x07Numpad5\x10&\x1a\0\x12\r\n\x07Numpad6\x10'\x1a\0\
-    \x12\r\n\x07Numpad7\x10(\x1a\0\x12\r\n\x07Numpad8\x10)\x1a\0\x12\r\n\x07\
-    Numpad9\x10*\x1a\0\x12\x0c\n\x06Cancel\x10+\x1a\0\x12\x0b\n\x05Clear\x10\
-    ,\x1a\0\x12\n\n\x04Menu\x10-\x1a\0\x12\x0b\n\x05Pause\x10.\x1a\0\x12\n\n\
-    \x04Kana\x10/\x1a\0\x12\x0c\n\x06Hangul\x100\x1a\0\x12\x0b\n\x05Junja\
-    \x101\x1a\0\x12\x0b\n\x05Final\x102\x1a\0\x12\x0b\n\x05Hanja\x103\x1a\0\
-    \x12\x0b\n\x05Kanji\x104\x1a\0\x12\r\n\x07Convert\x105\x1a\0\x12\x0c\n\
-    \x06Select\x106\x1a\0\x12\x0b\n\x05Print\x107\x1a\0\x12\r\n\x07Execute\
-    \x108\x1a\0\x12\x0e\n\x08Snapshot\x109\x1a\0\x12\x0c\n\x06Insert\x10:\
-    \x1a\0\x12\n\n\x04Help\x10;\x1a\0\x12\x0b\n\x05Sleep\x10<\x1a\0\x12\x0f\
-    \n\tSeparator\x10=\x1a\0\x12\x0c\n\x06Scroll\x10>\x1a\0\x12\r\n\x07NumLo\
-    ck\x10?\x1a\0\x12\n\n\x04RWin\x10@\x1a\0\x12\n\n\x04Apps\x10A\x1a\0\x12\
-    \x0e\n\x08Multiply\x10B\x1a\0\x12\t\n\x03Add\x10C\x1a\0\x12\x0e\n\x08Sub\
-    tract\x10D\x1a\0\x12\r\n\x07Decimal\x10E\x1a\0\x12\x0c\n\x06Divide\x10F\
-    \x1a\0\x12\x0c\n\x06Equals\x10G\x1a\0\x12\x11\n\x0bNumpadEnter\x10H\x1a\
-    \0\x12\x0c\n\x06RShift\x10I\x1a\0\x12\x0e\n\x08RControl\x10J\x1a\0\x12\n\
-    \n\x04RAlt\x10K\x1a\0\x12\x10\n\nCtrlAltDel\x10d\x1a\0\x12\x10\n\nLockSc\
-    reen\x10e\x1a\0\x1a\0*R\n\x08FileType\x12\t\n\x03Dir\x10\x01\x1a\0\x12\r\
+    eB\0B\t\n\x05union\x12\0:\0*\xb7\x08\n\nControlKey\x12\x0b\n\x05Empty\
+    \x10\0\x1a\0\x12\t\n\x03Alt\x10\x01\x1a\0\x12\x0f\n\tBackspace\x10\x02\
+    \x1a\0\x12\x0e\n\x08CapsLock\x10\x03\x1a\0\x12\r\n\x07Control\x10\x04\
+    \x1a\0\x12\x0c\n\x06Delete\x10\x05\x1a\0\x12\x0f\n\tDownArrow\x10\x06\
+    \x1a\0\x12\t\n\x03End\x10\x07\x1a\0\x12\x0c\n\x06Escape\x10\x08\x1a\0\
+    \x12\x08\n\x02F1\x10\t\x1a\0\x12\t\n\x03F10\x10\n\x1a\0\x12\t\n\x03F11\
+    \x10\x0b\x1a\0\x12\t\n\x03F12\x10\x0c\x1a\0\x12\x08\n\x02F2\x10\r\x1a\0\
+    \x12\x08\n\x02F3\x10\x0e\x1a\0\x12\x08\n\x02F4\x10\x0f\x1a\0\x12\x08\n\
+    \x02F5\x10\x10\x1a\0\x12\x08\n\x02F6\x10\x11\x1a\0\x12\x08\n\x02F7\x10\
+    \x12\x1a\0\x12\x08\n\x02F8\x10\x13\x1a\0\x12\x08\n\x02F9\x10\x14\x1a\0\
+    \x12\n\n\x04Home\x10\x15\x1a\0\x12\x0f\n\tLeftArrow\x10\x16\x1a\0\x12\n\
+    \n\x04Meta\x10\x17\x1a\0\x12\x0c\n\x06Option\x10\x18\x1a\0\x12\x0e\n\x08\
+    PageDown\x10\x19\x1a\0\x12\x0c\n\x06PageUp\x10\x1a\x1a\0\x12\x0c\n\x06Re\
+    turn\x10\x1b\x1a\0\x12\x10\n\nRightArrow\x10\x1c\x1a\0\x12\x0b\n\x05Shif\
+    t\x10\x1d\x1a\0\x12\x0b\n\x05Space\x10\x1e\x1a\0\x12\t\n\x03Tab\x10\x1f\
+    \x1a\0\x12\r\n\x07UpArrow\x10\x20\x1a\0\x12\r\n\x07Numpad0\x10!\x1a\0\
+    \x12\r\n\x07Numpad1\x10\"\x1a\0\x12\r\n\x07Numpad2\x10#\x1a\0\x12\r\n\
+    \x07Numpad3\x10$\x1a\0\x12\r\n\x07Numpad4\x10%\x1a\0\x12\r\n\x07Numpad5\
+    \x10&\x1a\0\x12\r\n\x07Numpad6\x10'\x1a\0\x12\r\n\x07Numpad7\x10(\x1a\0\
+    \x12\r\n\x07Numpad8\x10)\x1a\0\x12\r\n\x07Numpad9\x10*\x1a\0\x12\x0c\n\
+    \x06Cancel\x10+\x1a\0\x12\x0b\n\x05Clear\x10,\x1a\0\x12\n\n\x04Menu\x10-\
+    \x1a\0\x12\x0b\n\x05Pause\x10.\x1a\0\x12\n\n\x04Kana\x10/\x1a\0\x12\x0c\
+    \n\x06Hangul\x100\x1a\0\x12\x0b\n\x05Junja\x101\x1a\0\x12\x0b\n\x05Final\
+    \x102\x1a\0\x12\x0b\n\x05Hanja\x103\x1a\0\x12\x0b\n\x05Kanji\x104\x1a\0\
+    \x12\r\n\x07Convert\x105\x1a\0\x12\x0c\n\x06Select\x106\x1a\0\x12\x0b\n\
+    \x05Print\x107\x1a\0\x12\r\n\x07Execute\x108\x1a\0\x12\x0e\n\x08Snapshot\
+    \x109\x1a\0\x12\x0c\n\x06Insert\x10:\x1a\0\x12\n\n\x04Help\x10;\x1a\0\
+    \x12\x0b\n\x05Sleep\x10<\x1a\0\x12\x0f\n\tSeparator\x10=\x1a\0\x12\x0c\n\
+    \x06Scroll\x10>\x1a\0\x12\r\n\x07NumLock\x10?\x1a\0\x12\n\n\x04RWin\x10@\
+    \x1a\0\x12\n\n\x04Apps\x10A\x1a\0\x12\x0e\n\x08Multiply\x10B\x1a\0\x12\t\
+    \n\x03Add\x10C\x1a\0\x12\x0e\n\x08Subtract\x10D\x1a\0\x12\r\n\x07Decimal\
+    \x10E\x1a\0\x12\x0c\n\x06Divide\x10F\x1a\0\x12\x0c\n\x06Equals\x10G\x1a\
+    \0\x12\x11\n\x0bNumpadEnter\x10H\x1a\0\x12\x0c\n\x06RShift\x10I\x1a\0\
+    \x12\x0e\n\x08RControl\x10J\x1a\0\x12\n\n\x04RAlt\x10K\x1a\0\x12\x10\n\n\
+    CtrlAltDel\x10d\x1a\0\x12\x10\n\nLockScreen\x10e\x1a\0\x1a\0*c\n\x08File\
+    Type\x12\x0f\n\tFileEmpty\x10\0\x1a\0\x12\t\n\x03Dir\x10\x01\x1a\0\x12\r\
     \n\x07DirLink\x10\x02\x1a\0\x12\x0e\n\x08DirDrive\x10\x03\x1a\0\x12\n\n\
     \x04File\x10\x04\x1a\0\x12\x0e\n\x08FileLink\x10\x05\x1a\0\x1a\0*<\n\nPe\
     rmission\x12\x0e\n\x08Keyboard\x10\x01\x1a\0\x12\x0f\n\tClipboard\x10\

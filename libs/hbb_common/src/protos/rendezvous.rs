@@ -1310,7 +1310,7 @@ impl ::protobuf::Message for RegisterPkResponse {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.result != ::protobuf::ProtobufEnumOrUnknown::new(register_pk_response::Result::OK) {
+        if self.result != ::protobuf::ProtobufEnumOrUnknown::new(register_pk_response::Result::Register_None) {
             my_size += ::protobuf::rt::enum_or_unknown_size(1, self.result);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
@@ -1319,7 +1319,7 @@ impl ::protobuf::Message for RegisterPkResponse {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.result != ::protobuf::ProtobufEnumOrUnknown::new(register_pk_response::Result::OK) {
+        if self.result != ::protobuf::ProtobufEnumOrUnknown::new(register_pk_response::Result::Register_None) {
             os.write_enum(1, ::protobuf::ProtobufEnumOrUnknown::value(&self.result))?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
@@ -1348,7 +1348,7 @@ impl ::protobuf::Message for RegisterPkResponse {
 
     fn default_instance() -> &'static RegisterPkResponse {
         static instance: RegisterPkResponse = RegisterPkResponse {
-            result: ::protobuf::ProtobufEnumOrUnknown::from_i32(1),
+            result: ::protobuf::ProtobufEnumOrUnknown::from_i32(0),
             unknown_fields: ::protobuf::UnknownFields::new(),
             cached_size: ::protobuf::rt::CachedSize::new(),
         };
@@ -1358,7 +1358,7 @@ impl ::protobuf::Message for RegisterPkResponse {
 
 impl ::protobuf::Clear for RegisterPkResponse {
     fn clear(&mut self) {
-        self.result = ::protobuf::ProtobufEnumOrUnknown::new(register_pk_response::Result::OK);
+        self.result = ::protobuf::ProtobufEnumOrUnknown::new(register_pk_response::Result::Register_None);
         self.unknown_fields.clear();
     }
 }
@@ -1377,6 +1377,7 @@ impl ::protobuf::reflect::ProtobufValue for RegisterPkResponse {
 pub mod register_pk_response {
     #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
     pub enum Result {
+        Register_None = 0,
         OK = 1,
         UUID_MISMATCH = 2,
         ID_EXISTS = 3,
@@ -1393,6 +1394,7 @@ pub mod register_pk_response {
 
         fn from_i32(value: i32) -> ::std::option::Option<Result> {
             match value {
+                0 => ::std::option::Option::Some(Result::Register_None),
                 1 => ::std::option::Option::Some(Result::OK),
                 2 => ::std::option::Option::Some(Result::UUID_MISMATCH),
                 3 => ::std::option::Option::Some(Result::ID_EXISTS),
@@ -1406,6 +1408,7 @@ pub mod register_pk_response {
 
         fn values() -> &'static [Self] {
             static values: &'static [Result] = &[
+                Result::Register_None,
                 Result::OK,
                 Result::UUID_MISMATCH,
                 Result::ID_EXISTS,
@@ -1422,10 +1425,9 @@ pub mod register_pk_response {
         }
     }
 
-    // Note, `Default` is implemented although default value is not 0
     impl ::std::default::Default for Result {
         fn default() -> Self {
-            Result::OK
+            Result::Register_None
         }
     }
 
@@ -1632,7 +1634,7 @@ impl ::protobuf::Message for PunchHoleResponse {
         if !self.pk.is_empty() {
             my_size += ::protobuf::rt::bytes_size(2, &self.pk);
         }
-        if self.failure != ::protobuf::ProtobufEnumOrUnknown::new(punch_hole_response::Failure::ID_NOT_EXIST) {
+        if self.failure != ::protobuf::ProtobufEnumOrUnknown::new(punch_hole_response::Failure::FAILURE_None) {
             my_size += ::protobuf::rt::enum_or_unknown_size(3, self.failure);
         }
         if !self.relay_server.is_empty() {
@@ -1663,7 +1665,7 @@ impl ::protobuf::Message for PunchHoleResponse {
         if !self.pk.is_empty() {
             os.write_bytes(2, &self.pk)?;
         }
-        if self.failure != ::protobuf::ProtobufEnumOrUnknown::new(punch_hole_response::Failure::ID_NOT_EXIST) {
+        if self.failure != ::protobuf::ProtobufEnumOrUnknown::new(punch_hole_response::Failure::FAILURE_None) {
             os.write_enum(3, ::protobuf::ProtobufEnumOrUnknown::value(&self.failure))?;
         }
         if !self.relay_server.is_empty() {
@@ -1710,7 +1712,7 @@ impl ::protobuf::Message for PunchHoleResponse {
         static instance: PunchHoleResponse = PunchHoleResponse {
             socket_addr: ::std::vec::Vec::new(),
             pk: ::std::vec::Vec::new(),
-            failure: ::protobuf::ProtobufEnumOrUnknown::from_i32(1),
+            failure: ::protobuf::ProtobufEnumOrUnknown::from_i32(0),
             relay_server: ::std::string::String::new(),
             other_failure: ::std::string::String::new(),
             union: ::std::option::Option::None,
@@ -1725,7 +1727,7 @@ impl ::protobuf::Clear for PunchHoleResponse {
     fn clear(&mut self) {
         self.socket_addr.clear();
         self.pk.clear();
-        self.failure = ::protobuf::ProtobufEnumOrUnknown::new(punch_hole_response::Failure::ID_NOT_EXIST);
+        self.failure = ::protobuf::ProtobufEnumOrUnknown::new(punch_hole_response::Failure::FAILURE_None);
         self.relay_server.clear();
         self.union = ::std::option::Option::None;
         self.union = ::std::option::Option::None;
@@ -1757,6 +1759,7 @@ pub mod punch_hole_response {
     }
     #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
     pub enum Failure {
+        FAILURE_None = 0,
         ID_NOT_EXIST = 1,
         OFFLINE = 2,
         LICENCE_MISMATCH = 3,
@@ -1770,6 +1773,7 @@ pub mod punch_hole_response {
 
         fn from_i32(value: i32) -> ::std::option::Option<Failure> {
             match value {
+                0 => ::std::option::Option::Some(Failure::FAILURE_None),
                 1 => ::std::option::Option::Some(Failure::ID_NOT_EXIST),
                 2 => ::std::option::Option::Some(Failure::OFFLINE),
                 3 => ::std::option::Option::Some(Failure::LICENCE_MISMATCH),
@@ -1780,6 +1784,7 @@ pub mod punch_hole_response {
 
         fn values() -> &'static [Self] {
             static values: &'static [Failure] = &[
+                Failure::FAILURE_None,
                 Failure::ID_NOT_EXIST,
                 Failure::OFFLINE,
                 Failure::LICENCE_MISMATCH,
@@ -1793,10 +1798,9 @@ pub mod punch_hole_response {
         }
     }
 
-    // Note, `Default` is implemented although default value is not 0
     impl ::std::default::Default for Failure {
         fn default() -> Self {
-            Failure::ID_NOT_EXIST
+            Failure::FAILURE_None
         }
     }
 
@@ -4444,68 +4448,69 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x03\x20\x01(\tR\x0brelayServerB\0\x12)\n\x08nat_type\x18\x04\x20\x01(\
     \x0e2\x0c.hbb.NatTypeR\x07natTypeB\0:\0\"H\n\nRegisterPk\x12\x10\n\x02id\
     \x18\x01\x20\x01(\tR\x02idB\0\x12\x14\n\x04uuid\x18\x02\x20\x01(\x0cR\
-    \x04uuidB\0\x12\x10\n\x02pk\x18\x03\x20\x01(\x0cR\x02pkB\0:\0\"\xe1\x01\
+    \x04uuidB\0\x12\x10\n\x02pk\x18\x03\x20\x01(\x0cR\x02pkB\0:\0\"\xf6\x01\
     \n\x12RegisterPkResponse\x128\n\x06result\x18\x01\x20\x01(\x0e2\x1e.hbb.\
-    RegisterPkResponse.ResultR\x06resultB\0\"\x8e\x01\n\x06Result\x12\x08\n\
-    \x02OK\x10\x01\x1a\0\x12\x13\n\rUUID_MISMATCH\x10\x02\x1a\0\x12\x0f\n\tI\
-    D_EXISTS\x10\x03\x1a\0\x12\x12\n\x0cTOO_FREQUENT\x10\x04\x1a\0\x12\x17\n\
-    \x11INVALID_ID_FORMAT\x10\x05\x1a\0\x12\x11\n\x0bNOT_SUPPORT\x10\x06\x1a\
-    \0\x12\x12\n\x0cSERVER_ERROR\x10\x07\x1a\0\x1a\0:\0\"\x88\x03\n\x11Punch\
-    HoleResponse\x12!\n\x0bsocket_addr\x18\x01\x20\x01(\x0cR\nsocketAddrB\0\
-    \x12\x10\n\x02pk\x18\x02\x20\x01(\x0cR\x02pkB\0\x12:\n\x07failure\x18\
-    \x03\x20\x01(\x0e2\x1e.hbb.PunchHoleResponse.FailureR\x07failureB\0\x12#\
-    \n\x0crelay_server\x18\x04\x20\x01(\tR\x0brelayServerB\0\x12+\n\x08nat_t\
-    ype\x18\x05\x20\x01(\x0e2\x0c.hbb.NatTypeH\0R\x07natTypeB\0\x12\x1d\n\
-    \x08is_local\x18\x06\x20\x01(\x08H\0R\x07isLocalB\0\x12%\n\rother_failur\
-    e\x18\x07\x20\x01(\tR\x0cotherFailureB\0\"]\n\x07Failure\x12\x12\n\x0cID\
-    _NOT_EXIST\x10\x01\x1a\0\x12\r\n\x07OFFLINE\x10\x02\x1a\0\x12\x16\n\x10L\
-    ICENCE_MISMATCH\x10\x03\x1a\0\x12\x15\n\x0fLICENCE_OVERUSE\x10\x04\x1a\0\
-    \x1a\0B\t\n\x05union\x12\0:\0\"[\n\x0cConfigUpdate\x12\x18\n\x06serial\
-    \x18\x01\x20\x01(\x05R\x06serialB\0\x12/\n\x12rendezvous_servers\x18\x02\
-    \x20\x03(\tR\x11rendezvousServersB\0:\0\"\xc8\x01\n\x0cRequestRelay\x12\
-    \x10\n\x02id\x18\x01\x20\x01(\tR\x02idB\0\x12\x14\n\x04uuid\x18\x02\x20\
-    \x01(\tR\x04uuidB\0\x12!\n\x0bsocket_addr\x18\x03\x20\x01(\x0cR\nsocketA\
-    ddrB\0\x12#\n\x0crelay_server\x18\x04\x20\x01(\tR\x0brelayServerB\0\x12\
-    \x18\n\x06secure\x18\x05\x20\x01(\x08R\x06secureB\0\x12,\n\tconn_type\
-    \x18\x07\x20\x01(\x0e2\r.hbb.ConnTypeR\x08connTypeB\0:\0\"\xc9\x01\n\rRe\
-    layResponse\x12!\n\x0bsocket_addr\x18\x01\x20\x01(\x0cR\nsocketAddrB\0\
-    \x12\x14\n\x04uuid\x18\x02\x20\x01(\tR\x04uuidB\0\x12#\n\x0crelay_server\
-    \x18\x03\x20\x01(\tR\x0brelayServerB\0\x12\x12\n\x02id\x18\x04\x20\x01(\
-    \tH\0R\x02idB\0\x12\x12\n\x02pk\x18\x05\x20\x01(\x0cH\0R\x02pkB\0\x12%\n\
-    \rrefuse_reason\x18\x06\x20\x01(\tR\x0crefuseReasonB\0B\t\n\x05union\x12\
-    \0:\0\"&\n\x0eSoftwareUpdate\x12\x12\n\x03url\x18\x01\x20\x01(\tR\x03url\
-    B\0:\0\"Z\n\x0eFetchLocalAddr\x12!\n\x0bsocket_addr\x18\x01\x20\x01(\x0c\
-    R\nsocketAddrB\0\x12#\n\x0crelay_server\x18\x02\x20\x01(\tR\x0brelayServ\
-    erB\0:\0\"\x88\x01\n\tLocalAddr\x12!\n\x0bsocket_addr\x18\x01\x20\x01(\
-    \x0cR\nsocketAddrB\0\x12\x1f\n\nlocal_addr\x18\x02\x20\x01(\x0cR\tlocalA\
-    ddrB\0\x12#\n\x0crelay_server\x18\x03\x20\x01(\tR\x0brelayServerB\0\x12\
-    \x10\n\x02id\x18\x04\x20\x01(\tR\x02idB\0:\0\"\xbc\x08\n\x11RendezvousMe\
-    ssage\x12:\n\rregister_peer\x18\x06\x20\x01(\x0b2\x11.hbb.RegisterPeerH\
-    \0R\x0cregisterPeerB\0\x12S\n\x16register_peer_response\x18\x07\x20\x01(\
-    \x0b2\x19.hbb.RegisterPeerResponseH\0R\x14registerPeerResponseB\0\x12G\n\
-    \x12punch_hole_request\x18\x08\x20\x01(\x0b2\x15.hbb.PunchHoleRequestH\0\
-    R\x10punchHoleRequestB\0\x121\n\npunch_hole\x18\t\x20\x01(\x0b2\x0e.hbb.\
-    PunchHoleH\0R\tpunchHoleB\0\x12>\n\x0fpunch_hole_sent\x18\n\x20\x01(\x0b\
-    2\x12.hbb.PunchHoleSentH\0R\rpunchHoleSentB\0\x12J\n\x13punch_hole_respo\
-    nse\x18\x0b\x20\x01(\x0b2\x16.hbb.PunchHoleResponseH\0R\x11punchHoleResp\
-    onseB\0\x12A\n\x10fetch_local_addr\x18\x0c\x20\x01(\x0b2\x13.hbb.FetchLo\
-    calAddrH\0R\x0efetchLocalAddrB\0\x121\n\nlocal_addr\x18\r\x20\x01(\x0b2\
-    \x0e.hbb.LocalAddrH\0R\tlocalAddrB\0\x12@\n\x10configure_update\x18\x0e\
-    \x20\x01(\x0b2\x11.hbb.ConfigUpdateH\0R\x0fconfigureUpdateB\0\x124\n\x0b\
-    register_pk\x18\x0f\x20\x01(\x0b2\x0f.hbb.RegisterPkH\0R\nregisterPkB\0\
-    \x12M\n\x14register_pk_response\x18\x10\x20\x01(\x0b2\x17.hbb.RegisterPk\
-    ResponseH\0R\x12registerPkResponseB\0\x12@\n\x0fsoftware_update\x18\x11\
-    \x20\x01(\x0b2\x13.hbb.SoftwareUpdateH\0R\x0esoftwareUpdateB\0\x12:\n\rr\
-    equest_relay\x18\x12\x20\x01(\x0b2\x11.hbb.RequestRelayH\0R\x0crequestRe\
-    layB\0\x12=\n\x0erelay_response\x18\x13\x20\x01(\x0b2\x12.hbb.RelayRespo\
-    nseH\0R\rrelayResponseB\0\x12A\n\x10test_nat_request\x18\x14\x20\x01(\
-    \x0b2\x13.hbb.TestNatRequestH\0R\x0etestNatRequestB\0\x12D\n\x11test_nat\
-    _response\x18\x15\x20\x01(\x0b2\x14.hbb.TestNatResponseH\0R\x0ftestNatRe\
-    sponseB\0B\t\n\x05union\x12\0:\0*T\n\x08ConnType\x12\x12\n\x0cDEFAULT_CO\
-    NN\x10\0\x1a\0\x12\x13\n\rFILE_TRANSFER\x10\x01\x1a\0\x12\x12\n\x0cPORT_\
-    FORWARD\x10\x02\x1a\0\x12\t\n\x03RDP\x10\x03\x1a\0\x1a\0*A\n\x07NatType\
-    \x12\x11\n\x0bUNKNOWN_NAT\x10\0\x1a\0\x12\x10\n\nASYMMETRIC\x10\x01\x1a\
-    \0\x12\x0f\n\tSYMMETRIC\x10\x02\x1a\0\x1a\0B\0b\x06proto3\
+    RegisterPkResponse.ResultR\x06resultB\0\"\xa3\x01\n\x06Result\x12\x13\n\
+    \rRegister_None\x10\0\x1a\0\x12\x08\n\x02OK\x10\x01\x1a\0\x12\x13\n\rUUI\
+    D_MISMATCH\x10\x02\x1a\0\x12\x0f\n\tID_EXISTS\x10\x03\x1a\0\x12\x12\n\
+    \x0cTOO_FREQUENT\x10\x04\x1a\0\x12\x17\n\x11INVALID_ID_FORMAT\x10\x05\
+    \x1a\0\x12\x11\n\x0bNOT_SUPPORT\x10\x06\x1a\0\x12\x12\n\x0cSERVER_ERROR\
+    \x10\x07\x1a\0\x1a\0:\0\"\x9c\x03\n\x11PunchHoleResponse\x12!\n\x0bsocke\
+    t_addr\x18\x01\x20\x01(\x0cR\nsocketAddrB\0\x12\x10\n\x02pk\x18\x02\x20\
+    \x01(\x0cR\x02pkB\0\x12:\n\x07failure\x18\x03\x20\x01(\x0e2\x1e.hbb.Punc\
+    hHoleResponse.FailureR\x07failureB\0\x12#\n\x0crelay_server\x18\x04\x20\
+    \x01(\tR\x0brelayServerB\0\x12+\n\x08nat_type\x18\x05\x20\x01(\x0e2\x0c.\
+    hbb.NatTypeH\0R\x07natTypeB\0\x12\x1d\n\x08is_local\x18\x06\x20\x01(\x08\
+    H\0R\x07isLocalB\0\x12%\n\rother_failure\x18\x07\x20\x01(\tR\x0cotherFai\
+    lureB\0\"q\n\x07Failure\x12\x12\n\x0cFAILURE_None\x10\0\x1a\0\x12\x12\n\
+    \x0cID_NOT_EXIST\x10\x01\x1a\0\x12\r\n\x07OFFLINE\x10\x02\x1a\0\x12\x16\
+    \n\x10LICENCE_MISMATCH\x10\x03\x1a\0\x12\x15\n\x0fLICENCE_OVERUSE\x10\
+    \x04\x1a\0\x1a\0B\t\n\x05union\x12\0:\0\"[\n\x0cConfigUpdate\x12\x18\n\
+    \x06serial\x18\x01\x20\x01(\x05R\x06serialB\0\x12/\n\x12rendezvous_serve\
+    rs\x18\x02\x20\x03(\tR\x11rendezvousServersB\0:\0\"\xc8\x01\n\x0cRequest\
+    Relay\x12\x10\n\x02id\x18\x01\x20\x01(\tR\x02idB\0\x12\x14\n\x04uuid\x18\
+    \x02\x20\x01(\tR\x04uuidB\0\x12!\n\x0bsocket_addr\x18\x03\x20\x01(\x0cR\
+    \nsocketAddrB\0\x12#\n\x0crelay_server\x18\x04\x20\x01(\tR\x0brelayServe\
+    rB\0\x12\x18\n\x06secure\x18\x05\x20\x01(\x08R\x06secureB\0\x12,\n\tconn\
+    _type\x18\x07\x20\x01(\x0e2\r.hbb.ConnTypeR\x08connTypeB\0:\0\"\xc9\x01\
+    \n\rRelayResponse\x12!\n\x0bsocket_addr\x18\x01\x20\x01(\x0cR\nsocketAdd\
+    rB\0\x12\x14\n\x04uuid\x18\x02\x20\x01(\tR\x04uuidB\0\x12#\n\x0crelay_se\
+    rver\x18\x03\x20\x01(\tR\x0brelayServerB\0\x12\x12\n\x02id\x18\x04\x20\
+    \x01(\tH\0R\x02idB\0\x12\x12\n\x02pk\x18\x05\x20\x01(\x0cH\0R\x02pkB\0\
+    \x12%\n\rrefuse_reason\x18\x06\x20\x01(\tR\x0crefuseReasonB\0B\t\n\x05un\
+    ion\x12\0:\0\"&\n\x0eSoftwareUpdate\x12\x12\n\x03url\x18\x01\x20\x01(\tR\
+    \x03urlB\0:\0\"Z\n\x0eFetchLocalAddr\x12!\n\x0bsocket_addr\x18\x01\x20\
+    \x01(\x0cR\nsocketAddrB\0\x12#\n\x0crelay_server\x18\x02\x20\x01(\tR\x0b\
+    relayServerB\0:\0\"\x88\x01\n\tLocalAddr\x12!\n\x0bsocket_addr\x18\x01\
+    \x20\x01(\x0cR\nsocketAddrB\0\x12\x1f\n\nlocal_addr\x18\x02\x20\x01(\x0c\
+    R\tlocalAddrB\0\x12#\n\x0crelay_server\x18\x03\x20\x01(\tR\x0brelayServe\
+    rB\0\x12\x10\n\x02id\x18\x04\x20\x01(\tR\x02idB\0:\0\"\xbc\x08\n\x11Rend\
+    ezvousMessage\x12:\n\rregister_peer\x18\x06\x20\x01(\x0b2\x11.hbb.Regist\
+    erPeerH\0R\x0cregisterPeerB\0\x12S\n\x16register_peer_response\x18\x07\
+    \x20\x01(\x0b2\x19.hbb.RegisterPeerResponseH\0R\x14registerPeerResponseB\
+    \0\x12G\n\x12punch_hole_request\x18\x08\x20\x01(\x0b2\x15.hbb.PunchHoleR\
+    equestH\0R\x10punchHoleRequestB\0\x121\n\npunch_hole\x18\t\x20\x01(\x0b2\
+    \x0e.hbb.PunchHoleH\0R\tpunchHoleB\0\x12>\n\x0fpunch_hole_sent\x18\n\x20\
+    \x01(\x0b2\x12.hbb.PunchHoleSentH\0R\rpunchHoleSentB\0\x12J\n\x13punch_h\
+    ole_response\x18\x0b\x20\x01(\x0b2\x16.hbb.PunchHoleResponseH\0R\x11punc\
+    hHoleResponseB\0\x12A\n\x10fetch_local_addr\x18\x0c\x20\x01(\x0b2\x13.hb\
+    b.FetchLocalAddrH\0R\x0efetchLocalAddrB\0\x121\n\nlocal_addr\x18\r\x20\
+    \x01(\x0b2\x0e.hbb.LocalAddrH\0R\tlocalAddrB\0\x12@\n\x10configure_updat\
+    e\x18\x0e\x20\x01(\x0b2\x11.hbb.ConfigUpdateH\0R\x0fconfigureUpdateB\0\
+    \x124\n\x0bregister_pk\x18\x0f\x20\x01(\x0b2\x0f.hbb.RegisterPkH\0R\nreg\
+    isterPkB\0\x12M\n\x14register_pk_response\x18\x10\x20\x01(\x0b2\x17.hbb.\
+    RegisterPkResponseH\0R\x12registerPkResponseB\0\x12@\n\x0fsoftware_updat\
+    e\x18\x11\x20\x01(\x0b2\x13.hbb.SoftwareUpdateH\0R\x0esoftwareUpdateB\0\
+    \x12:\n\rrequest_relay\x18\x12\x20\x01(\x0b2\x11.hbb.RequestRelayH\0R\
+    \x0crequestRelayB\0\x12=\n\x0erelay_response\x18\x13\x20\x01(\x0b2\x12.h\
+    bb.RelayResponseH\0R\rrelayResponseB\0\x12A\n\x10test_nat_request\x18\
+    \x14\x20\x01(\x0b2\x13.hbb.TestNatRequestH\0R\x0etestNatRequestB\0\x12D\
+    \n\x11test_nat_response\x18\x15\x20\x01(\x0b2\x14.hbb.TestNatResponseH\0\
+    R\x0ftestNatResponseB\0B\t\n\x05union\x12\0:\0*T\n\x08ConnType\x12\x12\n\
+    \x0cDEFAULT_CONN\x10\0\x1a\0\x12\x13\n\rFILE_TRANSFER\x10\x01\x1a\0\x12\
+    \x12\n\x0cPORT_FORWARD\x10\x02\x1a\0\x12\t\n\x03RDP\x10\x03\x1a\0\x1a\0*\
+    A\n\x07NatType\x12\x11\n\x0bUNKNOWN_NAT\x10\0\x1a\0\x12\x10\n\nASYMMETRI\
+    C\x10\x01\x1a\0\x12\x0f\n\tSYMMETRIC\x10\x02\x1a\0\x1a\0B\0b\x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

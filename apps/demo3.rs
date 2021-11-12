@@ -9,11 +9,15 @@ use hbb_common::anyhow::Context;
 use hbb_common::tcp::FramedStream;
 use hbb_common::config::RENDEZVOUS_TIMEOUT;
 use hbb_common::bytes::Bytes;
-use hbb_common::bytes_codec::BytesCodec;
-use hbb_common::tokio_util::codec::{Framed,LengthDelimitedCodec};
+
+use hbb_common::tokio_util::codec::{Framed,LengthDelimitedCodec,BytesCodec};
 use hbb_common::tokio::net::{UdpSocket, TcpSocket, TcpStream};
 use hbb_common::futures::{SinkExt,StreamExt};
+use hbb_common::protobuf::Message;
+use hbb_common::rendezvous_proto::{RegisterPeer, RendezvousMessage};
 use hbb_common::tokio::io::AsyncWriteExt;
+use hbb_common::tokio::io::AsyncRead;
+use hbb_common::tokio_util::udp::UdpFramed;
 
 
 //第一步维护注册表，记录在内存中
@@ -25,14 +29,22 @@ async fn main() -> ResultType<()> {
 
 
 
-
-    // let mut socket1 = UdpSocket::bind("0.0.0.0:0").await?;
-    let mut stream = TcpStream::connect("127.0.0.1:13000").await?;
+    let socket1 = UdpSocket::bind("0.0.0.0:0").await?;
+    // let mut socket1 = UdpSocket::connect("0.0.0.0:0", ()).await?;
+    // let mut stream = TcpStream::connect("127.0.0.1:21116").await?;
 
 
     // println!("{:?}",socket.get_ref().local_addr() );
-    let mut socket =Framed::new(stream, BytesCodec::new());
-    socket.send(Bytes::from("qwerty")).await;
+    let mut socket =UdpFramed::new(socket1, LengthDelimitedCodec::new());
+    let mut msg = RendezvousMessage::new();
+    msg.set_register_peer(RegisterPeer {
+        id: "12344".to_string(),
+        serial: 0,
+        ..Default::default()
+    });
+
+    // socket.send(Bytes::from("haha")).await;
+    socket.send((Bytes::from(msg.write_to_bytes().unwrap()), to_socket_addr("127.0.0.1:21116").unwrap())).await;
 
 
 

@@ -83,6 +83,7 @@ message MouseEvent {
 }
 
 enum ControlKey {
+  Empty =0;
   Alt = 1;
   Backspace = 2;
   CapsLock = 3;
@@ -201,6 +202,7 @@ message Clipboard {
 };
 
 enum FileType {
+  FileEmpty =0;
   Dir = 1;
   DirLink = 2;
   DirDrive = 3;
@@ -261,6 +263,7 @@ message FileTransferCancel { int32 id = 1; }
 message FileResponse {
   oneof union {
     FileDirectory dir = 1;
+    //传输内容压缩
     FileTransferBlock block = 2;
     FileTransferError error = 3;
     FileTransferDone done = 4;
