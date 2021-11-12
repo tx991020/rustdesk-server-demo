@@ -1,20 +1,19 @@
-use hbb_common::tokio::select;
-use hbb_common::udp::FramedSocket;
-use hbb_common::{to_socket_addr, tokio, ResultType, tcp, Stream};
-use std::io;
-use hbb_common::tokio_util::codec::{Framed, BytesCodec, LengthDelimitedCodec, Encoder, Decoder};
-use hbb_common::config::RENDEZVOUS_TIMEOUT;
-use hbb_common::tcp::FramedStream;
 use hbb_common::anyhow::Context;
 use hbb_common::bytes::BytesMut;
-use hbb_common::tokio::net::TcpStream;
-use hbb_common::futures::{StreamExt,SinkExt};
+use hbb_common::config::RENDEZVOUS_TIMEOUT;
+use hbb_common::futures::{SinkExt, StreamExt};
+use hbb_common::tcp::FramedStream;
 use hbb_common::tokio::io::BufReader;
+use hbb_common::tokio::net::TcpStream;
+use hbb_common::tokio::select;
+use hbb_common::tokio_util::codec::{BytesCodec, Decoder, Encoder, Framed, LengthDelimitedCodec};
+use hbb_common::udp::FramedSocket;
+use hbb_common::{tcp, to_socket_addr, tokio, ResultType, Stream};
 use prost::bytes::Bytes;
+use std::io;
 
 #[tokio::main]
 async fn main() -> ResultType<()> {
-
     // let mut buf = vec![0; 1024];
     // println!("{}",buf.len() );
     // let mut codec = BytesCodec::new();
@@ -31,7 +30,6 @@ async fn main() -> ResultType<()> {
     // } else {
     //     assert!(false);
     // }
-
 
     // let mut socket = FramedSocket::new(to_socket_addr("0.0.0.0:0").unwrap()).await?;
     //
@@ -72,9 +70,8 @@ async fn main() -> ResultType<()> {
     Ok(())
 }
 
-
 async fn run_forward(forward: Framed<TcpStream, BytesCodec>, stream: Stream) -> ResultType<()> {
-    println!("{}","ffffff" );
+    println!("{}", "ffffff");
 
     let mut forward = forward;
     let mut stream = stream;

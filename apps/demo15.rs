@@ -1,14 +1,11 @@
-use hbb_common::{tcp, tokio, ResultType};
-use hbb_common::tokio::io::{AsyncWriteExt, AsyncReadExt};
 use hbb_common::bytes;
-
-
-
+use hbb_common::tokio::io::{AsyncReadExt, AsyncWriteExt};
+use hbb_common::{tcp, tokio, ResultType};
 
 //代理3389 在xp上编译个socket
 #[tokio::main]
-async fn main()->ResultType<()> {
-    let listener = tcp::new_listener(format!("0.0.0.0:{}",6000), true).await?;
+async fn main() -> ResultType<()> {
+    let listener = tcp::new_listener(format!("0.0.0.0:{}", 6000), true).await?;
 
     loop {
         // Asynchronously wait for an inbound socket.
@@ -45,4 +42,3 @@ async fn main()->ResultType<()> {
     }
     Ok(())
 }
-

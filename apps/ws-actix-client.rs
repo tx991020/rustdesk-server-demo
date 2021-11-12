@@ -16,7 +16,6 @@ use futures::stream::{SplitSink, StreamExt};
 fn main() {
     ::std::env::set_var("RUST_LOG", "actix_web=info");
 
-
     let sys = System::new("websocket-client");
 
     Arbiter::spawn(async {

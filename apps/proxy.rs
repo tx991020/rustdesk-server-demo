@@ -1,14 +1,13 @@
-use hbb_common::{tokio, timeout, to_socket_addr};
+use hbb_common::{timeout, to_socket_addr, tokio};
 
-
-use hbb_common::tokio::net::{TcpListener, TcpStream};
-use hbb_common::ResultType;
 use hbb_common::bytes::Bytes;
-use hbb_common::tokio_util::codec::{Framed, BytesCodec};
+use hbb_common::tokio::net::{TcpListener, TcpStream};
+use hbb_common::tokio_util::codec::{BytesCodec, Framed};
+use hbb_common::ResultType;
 
-use hbb_common::config::RENDEZVOUS_TIMEOUT;
 use hbb_common::anyhow::Context;
-use hbb_common::futures::{StreamExt,SinkExt};
+use hbb_common::config::RENDEZVOUS_TIMEOUT;
+use hbb_common::futures::{SinkExt, StreamExt};
 
 #[tokio::main]
 async fn main() -> ResultType<()> {
@@ -23,11 +22,10 @@ async fn main() -> ResultType<()> {
     // println!("Proxying to: {}", server_addr);
     tcp3().await;
 
-
     Ok(())
 }
 
-async fn tcp1()->ResultType<()>{
+async fn tcp1() -> ResultType<()> {
     let listener = TcpListener::bind("0.0.0.0:3389").await?;
     while let Ok((inbound, _)) = listener.accept().await {
         // let transfer = transfer(inbound, server_addr.clone()).map(|r| {
@@ -42,10 +40,7 @@ async fn tcp1()->ResultType<()>{
     Ok(())
 }
 
-
-async fn tcp2()->ResultType<()>{
-
-
+async fn tcp2() -> ResultType<()> {
     let listener = TcpListener::bind("0.0.0.0:3389").await?;
     while let Ok((inbound, _)) = listener.accept().await {
         // let transfer = transfer(inbound, server_addr.clone()).map(|r| {
@@ -58,27 +53,21 @@ async fn tcp2()->ResultType<()>{
     }
 
     Ok(())
-
 }
 
-
-async fn tcp3(){
-
+async fn tcp3() {
     //把本地3389的数据代理到远程6000上，端口复用
     //远程6000 tokio broadcast
 
-
     let mut stream1 = TcpStream::connect("39.107.33.253:6000").await.unwrap();
 
-
     // println!("{:?}",socket.get_ref().local_addr() );
-    let mut stream =Framed::new(stream1, BytesCodec::new());
+    let mut stream = Framed::new(stream1, BytesCodec::new());
     let sock = TcpStream::connect("127.0.0.1:3389").await.unwrap();
     let mut forward = Framed::new(sock, BytesCodec::new());
 
-
     loop {
-        tokio::select!{
+        tokio::select! {
 
              res = forward.next() =>{
                  if let  Some(Ok(bytes)) = res {
@@ -105,8 +94,6 @@ async fn tcp3(){
             }
         }
     }
-
-
 }
 // async fn transfer(mut inbound: TcpStream, mut outbound:  TcpStream) -> Result<(), Box<dyn Error>> {
 //

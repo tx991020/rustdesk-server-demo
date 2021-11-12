@@ -1,17 +1,15 @@
-use hbb_common::{ResultType, tokio};
-use std::sync::Arc;
-use smol::lock::Mutex;
+use hbb_common::bytes::Bytes;
+use hbb_common::futures_util::{SinkExt, StreamExt};
 use hbb_common::tokio::net::{TcpListener, TcpStream};
 use hbb_common::tokio::sync::mpsc;
+use hbb_common::tokio_util::codec::{Framed, LengthDelimitedCodec};
+use hbb_common::{tokio, ResultType};
+use smol::lock::Mutex;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use hbb_common::tokio_util::codec::{Framed,LengthDelimitedCodec};
-use hbb_common::futures_util::{SinkExt, StreamExt};
-use hbb_common::bytes::Bytes;
+use std::sync::Arc;
 #[tokio::main]
 async fn main() -> ResultType<()> {
-
-
     // Create the shared state. This is how all the peers communicate.
     //
     // The server task will hold a handle to this. For every new client, the
@@ -19,13 +17,10 @@ async fn main() -> ResultType<()> {
     // client connection.
     let state = Arc::new(Mutex::new(Shared::new()));
 
-
     // Bind a TCP listener to the socket address.
     //
     // Note that this is the Tokio TcpListener, which is fully async.
     let listener = TcpListener::bind("127.0.0.1:13000").await?;
-
-
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
@@ -35,12 +30,7 @@ async fn main() -> ResultType<()> {
         let state = Arc::clone(&state);
 
         // Spawn our handler to be run asynchronously.
-        tokio::spawn(async move {
-
-            if let Err(e) = process(state, stream, addr).await {
-
-            }
-        });
+        tokio::spawn(async move { if let Err(e) = process(state, stream, addr).await {} });
     }
 }
 
@@ -93,7 +83,6 @@ impl Shared {
             }
         }
     }
-
 }
 
 impl Peer {
@@ -116,13 +105,9 @@ impl Peer {
 }
 
 /// Process an individual chat client
-async fn process(
-    state: Arc<Mutex<Shared>>,
-    stream: TcpStream,
-    addr: SocketAddr,
-) -> ResultType<()> {
+async fn process(state: Arc<Mutex<Shared>>, stream: TcpStream, addr: SocketAddr) -> ResultType<()> {
     let mut lines = Framed::new(stream, LengthDelimitedCodec::new());
-    println!("{},{}",44444 ,addr);
+    println!("{},{}", 44444, addr);
     // Send a prompt to the client to enter their username.
 
     // Register our peer with state which internally sets up some channels.

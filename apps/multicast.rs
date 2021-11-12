@@ -1,9 +1,8 @@
 use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
-
-use hbb_common::ResultType;
 use hbb_common::bytes::BytesMut;
+use hbb_common::ResultType;
 
 use hbb_common::futures_util::StreamExt;
 use hbb_common::tokio::net::UdpSocket;
@@ -11,12 +10,11 @@ use hbb_common::tokio_util::udp::UdpFramed;
 
 use hbb_common::tokio_util::codec::{BytesCodec, Framed};
 
-use hbb_common::tokio;
-use hbb_common::futures::SinkExt;
 use hbb_common::bytes::Bytes;
-use hbb_common::message_proto::{Message, message};
+use hbb_common::futures::SinkExt;
+use hbb_common::message_proto::{message, Message};
 use hbb_common::protobuf::Message as _;
-
+use hbb_common::tokio;
 
 const DEFAULT_USERNAME: &str = "Anonymous";
 const DEFAULT_PORT: &str = "5050";
@@ -65,62 +63,30 @@ async fn main() -> ResultType<()> {
             handle_udp1(&mut socket, bytes, addr).await;
         }
     }
-
-
 }
-
-
-
-
-
-
 
 async fn handle_udp(
     socket: &mut UdpFramed<BytesCodec, UdpSocket>,
     bytes: BytesMut,
     addr: std::net::SocketAddr,
 ) {
-    println!("addr {},{:?},",addr,bytes );
+    println!("addr {},{:?},", addr, bytes);
     if let Ok(msg_in) = Message::parse_from_bytes(&bytes) {
         match msg_in.union {
             None => {}
-            Some(message::Union::cmd_action(hash)) => {
+            Some(message::Union::cmd_action(hash)) => {}
+            Some(message::Union::login_request(hash)) => {}
+            Some(message::Union::test_delay(hash)) => {}
+            Some(message::Union::video_frame(hash)) => {}
+            Some(message::Union::login_response(hash)) => {}
+            Some(message::Union::cursor_data(cd)) => {}
+            Some(message::Union::cursor_id(id)) => {}
+            Some(message::Union::cursor_position(cp)) => {}
+            Some(message::Union::clipboard(cb)) => {}
+            Some(message::Union::file_response(fr)) => {}
 
-            }
-            Some(message::Union::login_request(hash)) =>{
-
-            }
-            Some(message::Union::test_delay(hash)) =>{
-
-            }
-            Some(message::Union::video_frame(hash)) =>{
-
-            }
-            Some(message::Union::login_response(hash)) =>{
-
-            }
-            Some(message::Union::cursor_data(cd)) =>{
-
-            }
-            Some(message::Union::cursor_id(id)) =>{
-
-            }
-            Some(message::Union::cursor_position(cp)) =>{
-
-            }
-            Some(message::Union::clipboard(cb)) =>{
-
-            }
-            Some(message::Union::file_response(fr)) =>{
-
-            }
-
-            Some(message::Union::misc(misc)) =>{
-
-            }
-            Some(message::Union::audio_frame(frame)) => {
-
-            }
+            Some(message::Union::misc(misc)) => {}
+            Some(message::Union::audio_frame(frame)) => {}
             _ => {}
         }
     }

@@ -1,20 +1,15 @@
-
-use hbb_common::{ResultType, tokio};
+use hbb_common::bytes::Bytes;
 use hbb_common::tokio::io::{AsyncReadExt, AsyncWriteExt};
 use hbb_common::tokio::net::TcpListener;
-use hbb_common::bytes::Bytes;
+use hbb_common::{tokio, ResultType};
 
 #[tokio::main]
-async fn main()->ResultType<()> {
-
-
-
+async fn main() -> ResultType<()> {
     let listener = TcpListener::bind("127.0.0.1:13389").await?;
 
     loop {
         // Asynchronously wait for an inbound socket.
         let (mut socket, _) = listener.accept().await?;
-
 
         tokio::spawn(async move {
             let mut buf = c;
@@ -30,8 +25,7 @@ async fn main()->ResultType<()> {
                     return;
                 }
 
-
-                println!("111,{:?}",&buf[0..n]);
+                println!("111,{:?}", &buf[0..n]);
                 socket
                     .write_all(&buf[0..n])
                     .await

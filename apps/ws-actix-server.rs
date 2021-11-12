@@ -42,11 +42,7 @@ impl Actor for MyWebSocket {
 
 /// Handler for `ws::Message`
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
-    fn handle(
-        &mut self,
-        msg: Result<ws::Message, ws::ProtocolError>,
-        ctx: &mut Self::Context,
-    ) {
+    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         // process websocket messages
         println!("WS: {:?}", msg);
         match msg {
@@ -99,18 +95,16 @@ impl MyWebSocket {
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
 
-
     HttpServer::new(|| {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())
             // websocket route
             .service(web::resource("/ws/").route(web::get().to(ws_index)))
-            // static files
-
+        // static files
     })
-        // start http server on 127.0.0.1:8080
-        .bind("127.0.0.1:8085")?
-        .run()
-        .await
+    // start http server on 127.0.0.1:8080
+    .bind("127.0.0.1:8085")?
+    .run()
+    .await
 }

@@ -50,9 +50,7 @@ async fn main() -> ResultType<()> {
     Ok(())
 }
 
-async fn register() {
-
-}
+async fn register() {}
 
 async fn cast() -> ResultType<()> {
     let listener = TcpListener::bind("127.0.0.1:13389").await?;

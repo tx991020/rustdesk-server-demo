@@ -10,7 +10,7 @@ use std::{
 use tokio::net::{lookup_host, TcpListener, TcpSocket, TcpStream, ToSocketAddrs};
 use tokio_util::codec::Framed;
 
-pub struct FramedStream(    Framed<TcpStream, BytesCodec>, Option<(Key, u64, u64)>);
+pub struct FramedStream(Framed<TcpStream, BytesCodec>, Option<(Key, u64, u64)>);
 
 impl Deref for FramedStream {
     type Target = Framed<TcpStream, BytesCodec>;

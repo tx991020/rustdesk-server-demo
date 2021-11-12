@@ -50,6 +50,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Error;
 use std::sync::Arc;
+use dashmap::mapref::one::Ref;
 use tracing_subscriber;
 
 /// Shorthand for the transmit half of the message channel.
@@ -183,11 +184,8 @@ async fn tcp_active_21116(
 ) -> Result<()> {
     let mut listener_active = new_listener(addr, false).await?;
     loop {
-        // Accept the next connection.
-
         let (stream, addr1) = listener_active.accept().await?;
 
-        // Read messages from the client and ignore I/O errors when the client quits.
         tokio::spawn(tcp_21116_read_rendezvous_message(
             stream,
             state.clone(),
@@ -201,7 +199,6 @@ async fn tcp_active_21116(
 
 async fn tcp_passive_21117(
     addr: &str,
-
     state: Arc<Mutex<Shared>>,
     sender: Sender<Event>,
 ) -> Result<()> {
@@ -237,7 +234,6 @@ async fn tcp_21117_read_rendezvous_message(
         step = 1
     }
     drop(guard);
-    println!("fffffffffff 248  step {},{:?}", step, addr);
 
     let (tx, mut rx) = unbounded::<Vec<u8>>();
     if step == 0 {
@@ -1011,7 +1007,6 @@ async fn udp_21116(receiver: Receiver<Event>) -> Result<()> {
     let mut socket1 = UdpFramed::new(s, LengthDelimitedCodec::new());
 
     let receiver1 = receiver.clone();
-    let clone_map = IdMap.clone();
     tokio::spawn(async move {
         while let Ok(eve) = receiver1.recv().await {
             match eve {
@@ -1031,7 +1026,7 @@ async fn udp_21116(receiver: Receiver<Event>) -> Result<()> {
                         "39.107.33.253:21117".to_string(),
                         b,
                     )
-                    .await;
+                        .await;
                 }
                 Event::UnNone => {}
             }
@@ -1040,7 +1035,7 @@ async fn udp_21116(receiver: Receiver<Event>) -> Result<()> {
 
     loop {
         if let Some(Ok((bytes, addr))) = socket.next().await {
-            handle_udp(&mut socket, bytes, addr,  receiver.clone()).await;
+            handle_udp(&mut socket, bytes, addr, receiver.clone()).await;
         }
     }
 
@@ -1131,6 +1126,7 @@ async fn handle_udp(
                 allow_info!(format!("register_peer {:?}", &addr));
                 let mut msg = RendezvousMessage::new();
                 let mut id_map = IdMap.clone();
+
                 if let Some(client) = id_map.get(&rp.id) {
                     msg.set_register_peer_response(RegisterPeerResponse {
                         request_pk: false,
@@ -1143,7 +1139,7 @@ async fn handle_udp(
                     });
                 };
                 id_map.insert(
-                    rp.id,
+                    rp.id.clone(),
                     client {
                         timestamp: get_time() as u64,
                         local_addr: addr,
@@ -1151,6 +1147,32 @@ async fn handle_udp(
                         uuid: "".to_string(),
                     },
                 );
+                //xp 注册ip和id
+                let mut ip_map = IpMap.clone();
+                let ip = addr.ip().to_string();
+                let opt = ip_map.get(&ip);
+                match opt {
+                    None => {
+                        ip_map.insert(ip.clone(), client {
+                            timestamp: get_time() as u64,
+                            local_addr: addr,
+                            peer_ip: "".to_string(),
+                            uuid: rp.id.clone(),
+                        });
+                    }
+                    Some( ref e) => {
+                        //取出存在peer_ip
+                        let peer_ip = &e.peer_ip;
+                        ip_map.insert(ip,client{
+                            timestamp: get_time() as u64,
+                            local_addr: addr,
+                            peer_ip:String::from(peer_ip),
+                            uuid: rp.id
+                        });
+
+                    }
+                }
+
                 drop(id_map);
                 socket
                     .send((Bytes::from(msg.write_to_bytes().unwrap()), addr.clone()))
@@ -1215,8 +1237,8 @@ async fn proxy(id_map: Arc<Mutex<HashMap<String, client>>>) -> ResultType<()> {
                     results = rx.recv() => {
                         let (message, other_addr) = results.unwrap();
 
+                       let ip_map =  IpMap.clone();
 
-                        //  let mut id_map = id_map.lock().await;
                         // if option.is_some() {
                         //    if  option.unwrap().peer_addr =other_addr{
                         //          stream.send(message).await.unwrap();

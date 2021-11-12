@@ -1,18 +1,12 @@
-
-
-
-use hbb_common::{ResultType, tokio};
-use hbb_common::bytes::Bytes;
 use futures::{SinkExt, StreamExt};
+use hbb_common::bytes::Bytes;
+use hbb_common::{tokio, ResultType};
 
 use hbb_common::tokio::net::TcpListener;
-use hbb_common::tokio_util::codec::{Framed, BytesCodec, LengthDelimitedCodec};
-
-
+use hbb_common::tokio_util::codec::{BytesCodec, Framed, LengthDelimitedCodec};
 
 #[tokio::main]
 async fn main() -> ResultType<()> {
-
     let listener = TcpListener::bind("127.0.0.1:9500").await?;
     loop {
         let (stream, addr) = listener.accept().await?;

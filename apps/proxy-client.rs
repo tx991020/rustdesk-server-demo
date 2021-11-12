@@ -1,21 +1,14 @@
-
-
-
-
-
-
 use std::env;
 use std::error::Error;
 
-use hbb_common::tokio::net::{TcpListener, TcpStream};
+use hbb_common::bytes;
+use hbb_common::futures::{SinkExt, StreamExt};
 use hbb_common::tokio;
-use hbb_common::ResultType;
 use hbb_common::tokio::io;
 use hbb_common::tokio::io::AsyncWriteExt;
-use hbb_common::tokio_util::codec::{Framed, LengthDelimitedCodec,BytesCodec};
-use hbb_common::futures::{SinkExt, StreamExt};
-use hbb_common::bytes;
-
+use hbb_common::tokio::net::{TcpListener, TcpStream};
+use hbb_common::tokio_util::codec::{BytesCodec, Framed, LengthDelimitedCodec};
+use hbb_common::ResultType;
 
 #[tokio::main]
 async fn main() -> ResultType<()> {
@@ -24,7 +17,7 @@ async fn main() -> ResultType<()> {
         .unwrap_or_else(|| "127.0.0.1:9000".to_string());
     let server_addr = env::args()
         .nth(2)
-        .unwrap_or_else(|| "39.107.33.253:6000".to_string());   //一个websocket连到对端上
+        .unwrap_or_else(|| "39.107.33.253:6000".to_string()); //一个websocket连到对端上
 
     println!("Listening on: {}", listen_addr);
     println!("Proxying to: {}", &server_addr);
@@ -45,27 +38,25 @@ async fn main() -> ResultType<()> {
         stream.send(bytes1).await;
         loop {
             tokio::select! {
-            res = forward.next() => {
-                if let Some(Ok(bytes)) = res {
-                      println!("22222{:?}",&bytes);
-                  stream.send(bytes.into()).await;
-                } else {
-                    break;
-                }
-            },
-            res = stream.next() => {
-                if let Some(Ok(bytes)) = res {
-                          println!("3333333{:?}",&bytes);
-                    forward.send(bytes.into()).await;
-                } else {
-                    break;
-                }
-            },
-        }
+                res = forward.next() => {
+                    if let Some(Ok(bytes)) = res {
+                          println!("22222{:?}",&bytes);
+                      stream.send(bytes.into()).await;
+                    } else {
+                        break;
+                    }
+                },
+                res = stream.next() => {
+                    if let Some(Ok(bytes)) = res {
+                              println!("3333333{:?}",&bytes);
+                        forward.send(bytes.into()).await;
+                    } else {
+                        break;
+                    }
+                },
+            }
         }
     }
 
     Ok(())
 }
-
-

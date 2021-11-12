@@ -1,26 +1,21 @@
-use hbb_common::{ResultType, tokio};
+use hbb_common::futures::FutureExt;
 use hbb_common::tokio::io;
 use hbb_common::tokio::net::TcpStream;
-use hbb_common::futures::FutureExt;
+use hbb_common::{tokio, ResultType};
 
 use hbb_common::tokio::io::AsyncWriteExt;
 
-
 #[tokio::main]
-async fn main()->ResultType<()> {
+async fn main() -> ResultType<()> {
     let mut stream = TcpStream::connect("39.107.33.253:13389").await?;
 
     let forward = TcpStream::connect("127.0.0.1:3389").await?;
 
-    transfer(stream,forward).await;
+    transfer(stream, forward).await;
     Ok(())
-
 }
 
-
 async fn transfer(mut inbound: TcpStream, mut outbound: TcpStream) -> ResultType<()> {
-
-
     let (mut ri, mut wi) = inbound.split();
     let (mut ro, mut wo) = outbound.split();
 

@@ -1,41 +1,33 @@
-
+use dashmap::DashMap;
 use hbb_common::bytes::Bytes;
-use hbb_common::futures::{StreamExt,SinkExt};
-use hbb_common::tokio_util::codec::{Framed,LengthDelimitedCodec};
+use hbb_common::futures::{SinkExt, StreamExt};
 use hbb_common::tokio;
 use hbb_common::tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,
     sync::broadcast,
 };
+use hbb_common::tokio_util::codec::{Framed, LengthDelimitedCodec};
 use lazy_static::lazy_static;
-use dashmap::DashMap;
 use std::sync::Arc;
-
 
 #[derive(Debug, Clone)]
 pub struct Client {
     //心跳
     pub timestamp: u64,
     pub local_addr: String,
-    pub peer_addr:String,
+    pub peer_addr: String,
     //内网地址
     pub uuid: String,
 }
 
-
-lazy_static!{
+lazy_static! {
     pub static ref IdMap: Arc<DashMap<String, Client>> = Arc::new(DashMap::new());
 }
-
-
-
 
 //注册自己和对方
 #[tokio::main]
 async fn main() {
-
-
     let listener = TcpListener::bind("127.0.0.1:13000").await.unwrap();
 
     let (tx, _rx) = broadcast::channel(10);
