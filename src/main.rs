@@ -254,7 +254,7 @@ async fn tcp_21117_read_rendezvous_message(
                             allow_info!(format!("{:?}", &ph));
                             let mut msg = RendezvousMessage::new();
                             msg.set_relay_response(RelayResponse {
-                                relay_server: "39.107.33.253:21117".to_string(),
+                                relay_server: "81.70.144.184:21117".to_string(),
                                 ..Default::default()
                             });
 
@@ -617,7 +617,7 @@ async fn tcp_21116_read_rendezvous_message(
                             allow_info!(format!("{:?}", &ph));
                             let mut msg_out = RendezvousMessage::new();
                             msg_out.set_relay_response(RelayResponse {
-                                relay_server: "39.107.33.253:21117".to_string(),
+                                relay_server: "81.70.144.184:21117".to_string(),
                                 ..Default::default()
                             });
                             stream.send(&msg_out).await;
@@ -648,7 +648,7 @@ async fn tcp_21116_read_rendezvous_message(
                                     failure: protobuf::ProtobufEnumOrUnknown::from(
                                         punch_hole_response::Failure::OFFLINE,
                                     ),
-                                    relay_server: "39.107.33.253:21116".to_string(),
+                                    relay_server: "81.70.144.184:21116".to_string(),
                                     union: std::option::Option::Some(
                                         punch_hole_response::Union::is_local(false),
                                     ),
@@ -664,7 +664,7 @@ async fn tcp_21116_read_rendezvous_message(
                             msg_out.set_punch_hole_response(PunchHoleResponse {
                                 socket_addr: AddrMangle::encode(addr),
                                 pk: vec![] as Vec<u8>,
-                                relay_server: "39.107.33.253:21116".to_string(),
+                                relay_server: "81.70.144.184:21116".to_string(),
                                 union: std::option::Option::Some(
                                     punch_hole_response::Union::is_local(false),
                                 ),
@@ -1012,7 +1012,7 @@ async fn udp_21116(receiver: Receiver<Event>) -> Result<()> {
                 //对端id,本地ip
                 Event::First(id, a) => {
                     allow_info!(format!("{}", "first"));
-                    udp_send_fetch_local_addr(&mut socket1, "39.107.33.253:21117".to_string(), a)
+                    udp_send_fetch_local_addr(&mut socket1, "81.70.144.184:21117".to_string(), a)
                         .await;
 
                     let ip_map = IpMap.clone();
@@ -1041,7 +1041,7 @@ async fn udp_21116(receiver: Receiver<Event>) -> Result<()> {
                         &mut socket1,
                         id,
                         uuid,
-                        "39.107.33.253:21117".to_string(),
+                        "81.70.144.184:21117".to_string(),
                         b,
                     )
                     .await;
@@ -1080,7 +1080,7 @@ async fn udp_send_fetch_local_addr(
     addr: std::net::SocketAddr,
 ) -> Result<()> {
     let mut msg = RendezvousMessage::new();
-    let addr1 = to_socket_addr("39.107.33.253:21117").unwrap();
+    let addr1 = to_socket_addr("81.70.144.184:21117").unwrap();
 
     let vec1 = AddrMangle::encode(addr1);
     msg.set_fetch_local_addr(FetchLocalAddr {
