@@ -30,8 +30,8 @@ use uuid::Uuid;
 #[macro_use]
 extern crate tracing;
 
-
 use async_channel::{bounded, unbounded, Receiver, Sender};
+use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use futures::FutureExt;
 use hbb_common::futures_util::{SinkExt, StreamExt};
@@ -50,7 +50,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Error;
 use std::sync::Arc;
-use dashmap::mapref::one::Ref;
 use tracing_subscriber;
 
 /// Shorthand for the transmit half of the message channel.
@@ -100,7 +99,7 @@ enum Event {
 }
 
 //pub const RENDEZVOUS_SERVER: &'static str = "39.107.33.253:21117";
-// pub const RENDEZVOUS_SERVER: &'static str = "121.37.238.76:21117";
+
 
 lazy_static::lazy_static! {
     pub static ref RENDEZVOUS_SERVER: String = std::env::var("RENDEZVOUS_SERVER").unwrap();
@@ -1010,10 +1009,29 @@ async fn udp_21116(receiver: Receiver<Event>) -> Result<()> {
     tokio::spawn(async move {
         while let Ok(eve) = receiver1.recv().await {
             match eve {
+                //对端id,本地ip
                 Event::First(id, a) => {
                     allow_info!(format!("{}", "first"));
                     udp_send_fetch_local_addr(&mut socket1, "39.107.33.253:21117".to_string(), a)
                         .await;
+
+                    let ip_map = IpMap.clone();
+                    //获取对端ip并更新
+                    let result = ip_map.get(&id).unwrap();
+
+                    let remote_ip = result.local_addr.ip().to_string();
+                    let local_ip = a.ip().to_string();
+                    let ip_map = IdMap.clone();
+                    //更新自己的ip_map
+                    ip_map.insert(local_ip,client{
+                        timestamp: get_time() as u64,
+                        local_addr: a.clone(),
+                        peer_ip: remote_ip,
+                        uuid: "".to_string()
+                    });
+
+
+
                 }
                 Event::Second(id, b) => {
                     allow_info!(format!("{}", "second"));
@@ -1026,12 +1044,13 @@ async fn udp_21116(receiver: Receiver<Event>) -> Result<()> {
                         "39.107.33.253:21117".to_string(),
                         b,
                     )
-                        .await;
+                    .await;
                 }
                 Event::UnNone => {}
             }
-        }
-    });
+        };
+    }
+    );
 
     loop {
         if let Some(Ok((bytes, addr))) = socket.next().await {
@@ -1153,23 +1172,28 @@ async fn handle_udp(
                 let opt = ip_map.get(&ip);
                 match opt {
                     None => {
-                        ip_map.insert(ip.clone(), client {
-                            timestamp: get_time() as u64,
-                            local_addr: addr,
-                            peer_ip: "".to_string(),
-                            uuid: rp.id.clone(),
-                        });
+                        ip_map.insert(
+                            ip.clone(),
+                            client {
+                                timestamp: get_time() as u64,
+                                local_addr: addr,
+                                peer_ip: "".to_string(),
+                                uuid: rp.id.clone(),
+                            },
+                        );
                     }
-                    Some( ref e) => {
+                    Some(ref e) => {
                         //取出存在peer_ip
                         let peer_ip = &e.peer_ip;
-                        ip_map.insert(ip,client{
-                            timestamp: get_time() as u64,
-                            local_addr: addr,
-                            peer_ip:String::from(peer_ip),
-                            uuid: rp.id
-                        });
-
+                        ip_map.insert(
+                            ip,
+                            client {
+                                timestamp: get_time() as u64,
+                                local_addr: addr,
+                                peer_ip: String::from(peer_ip),
+                                uuid: rp.id,
+                            },
+                        );
                     }
                 }
 
@@ -1208,9 +1232,8 @@ async fn handle_udp(
     }
 }
 
-
 //自己的ip和对端ip配对
-async fn proxy(id_map: Arc<Mutex<HashMap<String, client>>>) -> ResultType<()> {
+async fn proxy() -> ResultType<()> {
     let listener = TcpListener::bind("127.0.0.1:13389").await?;
     let (tx, _) = broadcast::channel(10);
 
@@ -1220,6 +1243,7 @@ async fn proxy(id_map: Arc<Mutex<HashMap<String, client>>>) -> ResultType<()> {
         println!("clint with addr {} is connected", addr);
         let tx = tx.clone();
         let mut rx = tx.subscribe();
+        let ip = addr.ip().to_string();
 
         let mut stream = Framed::new(socket, BytesCodec::new());
         tokio::spawn(async move {
@@ -1228,23 +1252,30 @@ async fn proxy(id_map: Arc<Mutex<HashMap<String, client>>>) -> ResultType<()> {
                     results =  stream.next() => {
                      if let Some(Ok(bytes)) = results{
                              println!(" xxx {:?}",bytes);
-                               tx.send((Bytes::from(bytes), addr.ip().to_string())).unwrap();
+                               tx.send((Bytes::from(bytes), ip.clone())).unwrap();
                         }else {
                             println!("{}",333);
                             break;
                         }
                     }
                     results = rx.recv() => {
-                        let (message, other_addr) = results.unwrap();
+                        let (message, other_ip) = results.unwrap();
 
-                       let ip_map =  IpMap.clone();
+                        let ip_map =  IpMap.clone();
+                        let opt = ip_map.get(&ip);
+                          match opt {
+                                None => {
+                                }
+                                Some( ref e) => {
+                                    //取出存在peer_ip
+                                    let peer_ip = &e.peer_ip;
+                                    if other_ip==String::from(peer_ip){
+                                    stream.send(message).await;
+                                }
 
-                        // if option.is_some() {
-                        //    if  option.unwrap().peer_addr =other_addr{
-                        //          stream.send(message).await.unwrap();
-                        //     }
-                        //
-                        // }
+
+                                }
+                }
 
                     }
                 }
